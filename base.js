@@ -1,9 +1,9 @@
 var blessed = require("blessed");
+var os = require("os");
 var fs = require("fs");
 
 var http = require("http");
 var URL = require("url");
-
 var ROW_BACK_COLOR = '#0000FF';
 var ROW_HEAD_BACK_COLOR = '#800080';
 var FONT_COLOR = '#ffffff';
@@ -300,7 +300,7 @@ var ARROW_DOWN_TEXT = '↓';
 (function(N){
     function ZentaoAPI(url, username, password){
         this.http = new N.HttpClient();
-        this.url = url;
+        this.url = url + (url[url.length - 1] == '/' ? '' : '/');
         this.username = username;
         this.password = password;
         
@@ -332,13 +332,13 @@ var ARROW_DOWN_TEXT = '↓';
         var requrl = this.url + "index.php?mode=getconfig";
         var self = this;
 
-        return new Promise(function(resolve, reject){
+        return executor(function(resolve){
             if(self.isGetType !== null){
-                resolve(self.requestType);
+                resolve(self.isGetType);
             }else{
                 self.http.get(requrl, null, function(body){
-                    self.isGetType = JSON.parse(body).requestType == "GET"
-                    resolve(self.requestType);
+                    self.isGetType = JSON.parse(body).isGetType == "GET"
+                    resolve(self.isGetType);
                 });  
             }
         });
@@ -450,6 +450,25 @@ var ARROW_DOWN_TEXT = '↓';
         self.http.post(updateUrl, data, null, callback);
     }
     
+    ZentaoAPI.prototype.getRepos = function(callback){
+        
+        var self = this;
+        
+        var name = "index.php?m=svn&f=ajaxGetRepos&t=json";
+        if (!self.isGetType){
+            name = "svn-ajaxGetRepos.json";
+        }
+
+
+        var updateUrl = self.url + name;
+
+        self.http.get(updateUrl, null, function(body, status){
+            logger("ZentaoAPI.getRepos:" + body);
+            var data = JSON.parse(body);
+            callback(data);         
+        });        
+    }
+    
     
     N.ZentaoAPI = ZentaoAPI;
     
@@ -469,7 +488,6 @@ var ARROW_DOWN_TEXT = '↓';
         var result = {};
         //读取ini文件
         var contents = fs.readFileSync(file, "UTF-8");
-        
         var lines = contents.split('\n');
         var group = '';
         for(var i = 0; i < lines.length; i++){
@@ -489,8 +507,23 @@ var ARROW_DOWN_TEXT = '↓';
         return result;
     }
     
+    function saveIniFile(file, mapIniData){
+        var arr = [];
+        for(var name in mapIniData){
+            arr.push('[' + name + ']');
+            
+            
+            for(var key in mapIniData[name]){
+                arr.push(key + '=' + mapIniData[name][key]);
+            }
+        }
+        
+        fs.writeFileSync(file, arr.join('\r\n'));
+    }
+    
     
     N.parseIniFile = parseIniFile;
+    N.saveIniFile = saveIniFile;
 })(module.exports);
 
 module.exports.getText = getText;
@@ -501,3 +534,30 @@ module.exports.getText = getText;
 function getText(textName){
 	return textName;
 }
+
+function executor(callback){
+    return new Promise(function(resolve, reject){
+        callback(resolve);
+    });
+}
+
+module.exports.executor = executor;
+
+
+/**
+ * 日志记录
+ */
+function logger() {
+	for (var i = 0; i < arguments.length; i++) {
+		fs.appendFile("log.txt", (now()) + " " + JSON.stringify(arguments[i]) + "\r\n");
+	}
+}
+
+function now(){
+    var d = new Date();
+    return d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate() + " " + d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds();
+}
+
+module.exports.logger = logger;
+
+module.exports.now = now;
