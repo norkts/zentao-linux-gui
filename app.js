@@ -58,8 +58,6 @@ process.on('uncaughtException', function (error) {
         logger("start install zentao");
         //无配置文件或安装模式
         install();
-        
-        return;
     }
     websiteMap = base.parseIniFile(globalIniPath);
         
