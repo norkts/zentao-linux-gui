@@ -9,9 +9,12 @@ var base = require('./base');
 var blessed = require("blessed");
 var fs = require("fs");
 var os = require("os");
+var child = require('child_process');
+
 
 var ListTable = base.ListTable;
 var executor = base.executor;
+var GBK2UTF8 = base.GBK2UTF8;
 
 var argvs = process.argv;
 
@@ -19,6 +22,8 @@ var globalIniPath = '~/.zentao'; //配置文件地址
 var commitFile = '~/.zentao.commit';//TODO 多用户处理
 var workConfigPath = '~/.zentao.work';
 var currentPath = process.cwd();
+var zentaosh = '~/.zentao-sh';
+
 
 if (os.type() == 'Windows_NT') {
 	globalIniPath = '.zentao';
@@ -41,7 +46,7 @@ var screen = undefined;
 var workconfig = undefined;
 
 process.on('uncaughtException', function (error) {
-	logger(error);
+	logger(error.name  + ":" + error.message + "\r\n" + error.stack);
 });
 
 /**
@@ -49,7 +54,8 @@ process.on('uncaughtException', function (error) {
  */
 (function(){
     
-    if(!fs.existsSync(globalIniPath)){
+    if(isFileEmpty(globalIniPath)){
+        logger("start install zentao");
         //无配置文件或安装模式
         install();
         
@@ -57,7 +63,7 @@ process.on('uncaughtException', function (error) {
     }
     websiteMap = base.parseIniFile(globalIniPath);
         
-    if(!fs.existsSync(workConfigPath)){
+    if(isFileEmpty(workConfigPath)){
         //绑定目录-站点-repository
         bindWorkRepository();
     }else{
@@ -67,16 +73,57 @@ process.on('uncaughtException', function (error) {
 
 })();
 
+function isFileEmpty(file){
+    if(!fs.existsSync(file)){
+        return true;
+    }
+    
+    var state = fs.statSync(file);
+    
+    if(state.isDirectory()){
+        return true;
+    }
+    
+    if(state.size == 0){
+        return true;
+    }
+
+    return false;
+}
+
 /**
  * 安装程序
  */
 function install(){
+    if(os.type().toLowerCase() != 'linux'){
+        process.stdout.write('不支持的操作系统' + os.type() + ', 只支持linux系统\r\n');
+        return;
+    }
+    
     process.stdout.write("开始安装zentao-for-linux\r\n");
-    //TODO 添加自定义的脚本
+    
+    var contents = fs.readFileSync('~/.bashrc', 'utf8');
+    
+    //判断是否添加了命令接管
+    if(content.indexOf('.zentao-sh') == -1){
+        //复制命令接管脚本文件到用户目录
+        contents = fs.readFileSync('.zentao-sh', 'utf8');
+        fs.writeFileSync('~/.zentao-sh', contents);
+        
+        //每次启动终端使脚本接管生效
+        fs.appendFileSync('~/.bashrc', 'source ~/.zentao-sh');
+        
+        //使当前终端命令接管生效
+        child.execSync('source ~/.zentao-sh');
+        
+        //创建禅道主程序启动脚本链接
+        child.execSync('ln -s zentao /usr/bin/zentao');
+    }
     
     process.stdout.write("你没有添加过禅道站点,是否添加(y or n): ");
     var chunk = stdinRead();
     websiteMap = {};
+
     if(chunk == 'y'){
         while(true){
             process.stdout.write("请输入站点名称: ");
@@ -103,7 +150,6 @@ function install(){
             }
         }
     }
-
 }
 
 /**
@@ -116,9 +162,10 @@ function view(){
     if(websiteMap[workconfig[currentPath].name] == undefined){
         bindWorkRepository();
     }else{
-        if(!fs.existsSync(commitFile)){
-            initTUI();
+        if(isFileEmpty(commitFile)){
             //无参数，则显示TUI
+            
+            initTUI();
             initZentaoTui(workconfig[currentPath]);
         }else{
             postCommit(commitFile);
@@ -129,7 +176,7 @@ function view(){
 /**
  * 绑定站点和仓库
  */
-function bindWorkRepository(){
+function bindWorkRepository(){                                                                                                          
     process.stdin.resume();
     
     logger("bindWorkRepository start");
@@ -183,14 +230,17 @@ function bindWorkRepository(){
     })
 }
 
-function stdinRead(){
+/**
+ * 读取终端输入
+ */
+function stdinRead(){    
     process.stdin.setEncoding('utf8');
     
-    var buf = new Buffer(0xff);
-
-    fs.readSync(process.stdin.fd, buf, 0, 0xff, null);
+    var buf = new Buffer(1000);
+    buf.fill(0);
+    var size = fs.readSync(process.stdin.fd, buf, 0, 1000, null);
     
-    return buff.toString("UTF-8");
+    return GBK2UTF8(buf.slice(0, size)).trim();
 }
 
 /**
