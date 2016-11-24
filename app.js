@@ -29,6 +29,12 @@ if (os.type() == 'Windows_NT') {
 	globalIniPath = '.zentao';
     commitFile = '.zentao.commit';
     workConfigPath = '.zentao.work';
+    zentaosh = '.zentao-sh';
+}else{
+    globalIniPath = process.env.HOME + "/.zentao";
+    commitFile = process.env.HOME + '/.zentao.commit';
+    workConfigPath = process.env.HOME + '/.zentao.work';
+    zentaosh = process.env.HOME + '/.zentao-sh';
 }
 
 var logger = base.logger;
@@ -100,22 +106,22 @@ function install(){
     
     process.stdout.write("开始安装zentao-for-linux\r\n");
     
-    var contents = fs.readFileSync('~/.bashrc', 'utf8');
+    var contents = fs.readFileSync(process.env.HOME + '/.bashrc', 'utf8');
     
     //判断是否添加了命令接管
     if(content.indexOf('.zentao-sh') == -1){
         //复制命令接管脚本文件到用户目录
         contents = fs.readFileSync('.zentao-sh', 'utf8');
-        fs.writeFileSync('~/.zentao-sh', contents);
+        fs.writeFileSync(zentaosh, contents);
         
         //每次启动终端使脚本接管生效
-        fs.appendFileSync('~/.bashrc', 'source ~/.zentao-sh');
+        fs.appendFileSync(process.env.HOME + '/.bashrc', 'source ~/.zentao-sh');
         
         //使当前终端命令接管生效
         child.execSync('source ~/.zentao-sh');
         
         //创建禅道主程序启动脚本链接
-        child.execSync('ln -s zentao /usr/bin/zentao');
+        child.execSync('ln -s ' + currentPath + '/zentao /usr/bin/zentao');
     }
     
     process.stdout.write("你没有添加过禅道站点,是否添加(y or n): ");
