@@ -38,6 +38,6 @@ function git(){
 
 function runZentao(){
 	$zentaopath $@;
-	$exepath $@;
+	$exepath $@ -F ~/.zentao.commit;
 	$zentaopath $@;
 }
