@@ -16,14 +16,13 @@ var ListTable = base.ListTable;
 var executor = base.executor;
 var GBK2UTF8 = base.GBK2UTF8;
 
-var argvs = process.argv;
-
 var globalIniPath = '~/.zentao'; //配置文件地址
 var commitFile = '~/.zentao.commit';//TODO 多用户处理
 var workConfigPath = '~/.zentao.work';
 var currentPath = process.cwd();
 var zentaosh = '~/.zentao-sh';
 
+process.stdin.resume();
 
 if (os.type() == 'Windows_NT') {
 	globalIniPath = '.zentao';
@@ -53,6 +52,7 @@ var workconfig = undefined;
 
 process.on('uncaughtException', function (error) {
 	logger(error.name  + ":" + error.message + "\r\n" + error.stack);
+    console.error(error.stack);
 });
 
 /**
@@ -109,16 +109,13 @@ function install(){
     var contents = fs.readFileSync(process.env.HOME + '/.bashrc', 'utf8');
     
     //判断是否添加了命令接管
-    if(content.indexOf('.zentao-sh') == -1){
+    if(contents.indexOf('.zentao-sh') == -1){
         //复制命令接管脚本文件到用户目录
         contents = fs.readFileSync('.zentao-sh', 'utf8');
         fs.writeFileSync(zentaosh, contents);
         
         //每次启动终端使脚本接管生效
         fs.appendFileSync(process.env.HOME + '/.bashrc', 'source ~/.zentao-sh');
-        
-        //使当前终端命令接管生效
-        child.execSync('source ~/.zentao-sh');
         
         //创建禅道主程序启动脚本链接
         child.execSync('ln -s ' + currentPath + '/zentao /usr/bin/zentao');
@@ -163,7 +160,10 @@ function view(){
     
     
     var workconfig = base.parseIniFile(workConfigPath);
-    if(websiteMap[workconfig[currentPath].name] == undefined){
+    if(workconfig[currentPath] == undefined 
+        || workconfig[currentPath].name == undefined 
+        || websiteMap[workconfig[currentPath].name] == undefined){
+            
         bindWorkRepository();
     }else{
         if(isFileEmpty(commitFile)){
@@ -237,14 +237,25 @@ function bindWorkRepository(){
 /**
  * 读取终端输入
  */
-function stdinRead(){    
-    process.stdin.setEncoding('utf8');
+function stdinRead(){
+    process.stdin.resume();
     
+    var fd = process.stdin.fd;
+    if(os.type() == 'Linux'){
+        fd = fs.openSync('/dev/stdin', 'rs');
+    }
+        
     var buf = new Buffer(1000);
     buf.fill(0);
-    var size = fs.readSync(process.stdin.fd, buf, 0, 1000, null);
+    var size = fs.readSync(fd, buf, 0, 1000);
     
-    return GBK2UTF8(buf.slice(0, size)).trim();
+    buf = buf.slice(0, size);
+
+    if(os.type() == 'Linux'){
+        return buf.toString().trim();
+    }else{
+        return GBK2UTF8(buf).trim();
+    }
 }
 
 /**
@@ -270,9 +281,12 @@ function saveWorkConfig(websiteName, repository){
  * 提交消息之后
  */
 function postCommit(commitFile){
+    logger("--开始提交commit信息到禅道--");
+    
     var workconfig = base.parseIniFile(workConfigPath);
     initZentaoAPI(workconfig[currentPath], function(isSuccess, msg){
-       
+        logger("--接口登录成功:result=" + isSuccess + ", msg=" + msg);
+        
         var contents = fs.readFileSync(commitFile, 'UTF-8');
         
         var taskRegAll = /(Finish\s+)?[Tt]ask#(\d+).*?,\s*[Cc]ost:(\d+)\s*left:(\d+)/g;
@@ -281,35 +295,61 @@ function postCommit(commitFile){
         var bugReg = /(Fix\s+)?[Bb]ug#(\d+)/;
         
         var matches = contents.match(taskRegAll);
+
+        var taskTotal = 0;
         if(matches != undefined){
             for(var i = 0; i < matches.length; i++){
                 var match = matches[i].match(taskReg);
                 var task = {id: match[2], consumed: match[3], left: match[4]};
-                zentaoAPI.updateTask(task, function(){
-                    //TODO 成功的处理
+                taskTotal++;
+                
+                logger("--开始更新task#"+ task.id + ", 任务数=" + taskTotal);
+                
+                zentaoAPI.updateTask(task, function(body, status){
+                    taskTotal--;
+                    logger("--task#"+ task.id + "更新成功: status=" + status);
+                    checkFinished(taskTotal);
                 });
             }
         }
         
-        contents.match(bugRegAll);
+        matches = contents.match(bugRegAll);
         if(matches != undefined){
             for(var i = 0; i < matches.length; i++){
                 var match = matches[i].match(bugReg);
                 var bugId = match[2];
-                zentaoAPI.updateBug(bugId, function(){
-                    //TODO 成功的处理
+                taskTotal++;
+                
+                logger("--开始更新bug#"+ bugId + ", 任务数=" + taskTotal);
+                zentaoAPI.updateBug(bugId, function(body, status){
+                    logger("--bug#"+ bugId + "更新成功,status=" + status);
+                    taskTotal--;
+                    checkFinished(taskTotal);
                 });
             }
-        }    
+        }
+        
+        checkFinished(taskTotal);
     });
     
     //TODO reversion信息，commitMessage信息，repo信息处理
+    
+    function checkFinished(total){
+        logger("--正在执行的任务数:"+ total + "--");
+        if(total < 1){
+            logger("--提交commit信息到禅道完成--");
+            
+            fs.unlinkSync(commitFile);
+            process.exit(0);
+        }
+    }
 }
 
 /**
  * 初始化字符界面
  */
 function initTUI(){
+    base.logToConsole = false;
     screen = blessed.screen({
         debug : true,
         fullUnicode : true
@@ -320,7 +360,6 @@ function initTUI(){
      */
     screen.key('C-q', function () {
         destroyTUI();
-        
         process.exit(0);
     });
 }
@@ -328,6 +367,7 @@ function initTUI(){
 
 function destroyTUI(){
     screen.destroy();
+    base.logToConsole = true;
 }
 /**
  * 初始化站点列表
@@ -392,9 +432,10 @@ function initSiteTable(onRowSelect) {
  * 初始化禅道操作信息
  */
 function initZentaoTui(website){
-    logger("initZentaoTui " + JSON.stringify(website));
+    
+    logger("initZentaoTui-start:" + JSON.stringify(website));
     initZentaoAPI(website, function (isSucess, message) {
-        logger("initZentaoTui-initZentaoAPI " + isSucess + "," + message);
+        logger("initZentaoTui-login-done: status= " + isSucess + ",msg" + message);
         if (isSucess) {
             bugTable = initBugTable();
         } else {
@@ -680,8 +721,8 @@ function workTimeDialog(selectedIndex, isFinished) {
 			vi : true,
 			left : 10,
 			top : 5,
-			width : screen.width - 20,
-			height : screen.height - 20,
+			width : 70,
+			height : 15,
 			style : {
 				bg : '#0000FF',
 				fg : '#fff'

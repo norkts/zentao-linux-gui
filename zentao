@@ -1,2 +1,11 @@
 #!/bin/bash
-node app.js $@
+
+zentaoDir=$PWD
+
+if [ -f "/usr/bin/zentao" ]; then
+	script=`ls -l /usr/bin/zentao`
+	zentaoDir=`dirname ${script#*->}`
+fi
+
+node $zentaoDir/app.js $@
+source ~/.zentao-sh

@@ -1,6 +1,10 @@
 var blessed = require("blessed");
 var os = require("os");
 var fs = require("fs");
+var PathModule = require('path');
+
+var argvs = process.argv;
+var installDir = PathModule.dirname(argvs[1]);
 
 var http = require("http");
 var URL = require("url");
@@ -384,7 +388,7 @@ var ARROW_DOWN_TEXT = '↓';
         
         updateUrl = self.url + name;
         
-        self.post(updateUrl, data, undefined, callback);
+        self.http.post(updateUrl, data, undefined, callback);
                 
     }
     
@@ -543,7 +547,7 @@ function executor(callback){
 
 module.exports.executor = executor;
 
-
+module.exports.logToConsole = true;
 /**
  * 日志记录
  */
@@ -559,7 +563,12 @@ function logger() {
             content += arguments[i];
         }
         
-		fs.appendFileSync("log.txt", content + "\r\n");
+        if(module.exports.logToConsole){
+            console.log(content);    
+        }
+        
+		
+        fs.appendFileSync(installDir + "/log.txt", content + "\r\n");
 	}
 }
 

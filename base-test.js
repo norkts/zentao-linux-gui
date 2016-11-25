@@ -10,7 +10,10 @@ if(os.type() == 'Windows_NT'){
     configPath = '.zentao';
 }
 
-var mapWebSite = base.parseIniFile(configPath);
+var matches = "Fix bug#194 1111\r\nFix bug#165 提交错误".match(/(Fix\s+)?[Bb]ug#(\d+)/g);
+console.log(matches);
+
+/* var mapWebSite = base.parseIniFile(configPath);
 
 
 zentao.isGet().then(function(){
@@ -39,4 +42,4 @@ zentao.isGet().then(function(){
     }else{
         console.log('--login-failed:' + msg);
     }
-})
+}) */
