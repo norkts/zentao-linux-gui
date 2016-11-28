@@ -880,19 +880,7 @@ function workTimeDialog(selectedIndex, isFinished) {
 		});
 	
 	leftTextInput.setValue(isFinished ? '0' : rowData[4]);
-	
-	var finishedLabel = blessed.text({
-			content : getText('TaskFinished'),
-			left : 2,
-			top : 9,
-			style : {
-				fg : '#fff',
-				bg : '#0000FF'
-			}
-		});
-	
-	form.append(finishedLabel);
-	
+		
 	var okBtn = blessed.button({
 			content : getText('OK'),
 			top : 11,
