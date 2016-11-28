@@ -3,6 +3,7 @@ svnpath=/usr/bin/svn
 gitpath=/usr/bin/git
 zentaopath=~/.zentao/bin/zentao
 exepath=$svnpath
+commitFile=~/.zentao/tmp/.zentao.commit
 
 function svn(){
 	exepath=$svnpath;
@@ -38,6 +39,11 @@ function git(){
 
 function runZentao(){
 	$zentaopath $@;
-	$exepath $@ -F ~/.zentao/tmp/.zentao.commit;
-	$zentaopath $@;
+	
+	if [ -f $commitFile];then
+		$exepath $@ -F $commitFile;
+		$zentaopath $@;
+	else
+		$exepath $@
+	fi
 }
