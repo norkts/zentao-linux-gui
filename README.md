@@ -1,13 +1,12 @@
 #zentao-linux-gui
-ÊÇÒ»¸öÎª[ìøµÀÏîÄ¿¹ÜÀíÏµÍ³](http://www.zentao.net/)¿ª·¢µÄÒ»¸öÔÚlinuxÖÕ¶ËÏÂµÄGUI²Ù×÷³ÌĞò¡£
+æ˜¯ä¸€ä¸ªä¸º[ç¦…é“é¡¹ç›®ç®¡ç†ç³»ç»Ÿ](http://www.zentao.net/)å¼€å‘çš„ä¸€ä¸ªåœ¨linuxç»ˆç«¯ä¸‹çš„GUIæ“ä½œç¨‹åºã€‚
 
-¸ÃÈí¼ş»ùÓÚ[nodejs](https://nodejs.org/en/)¿ª·¢£¬nodejs°æ±¾Îª5.9.1»ò¸üĞÂ¡£
-Èí¼şÒÀÀµ[blessed](https://github.com/chjj/blessed)¡£
+è¯¥è½¯ä»¶åŸºäº[nodejs](https://nodejs.org/en/)å¼€å‘ï¼Œnodejsç‰ˆæœ¬ä¸º5.9.1æˆ–æ›´æ–°ã€‚
+è½¯ä»¶ä¾èµ–[blessed](https://github.com/chjj/blessed)ã€‚
 
 ```shell
-npm install blessed
-
 git clone https://github.com/norkts/zentao-linux-gui.git
 cd zentao-linux-gui
+npm install blessed
 ./zentao
 ```
