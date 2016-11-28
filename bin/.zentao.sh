@@ -40,7 +40,7 @@ function git(){
 function runZentao(){
 	$zentaopath $@;
 	
-	if [ -f $commitFile];then
+	if [ -f $commitFile ]; then
 		$exepath $@ -F $commitFile;
 		$zentaopath $@;
 	else
