@@ -15,25 +15,37 @@ var child = require('child_process');
 var ListTable = base.ListTable;
 var executor = base.executor;
 var GBK2UTF8 = base.GBK2UTF8;
+var Lang = base.Lang;
+var getText = function(text){
+	return Lang.getText(text);
+}
 
-var globalIniPath = '~/.zentao'; //配置文件地址
-var commitFile = '~/.zentao.commit';//TODO 多用户处理
-var workConfigPath = '~/.zentao.work';
+var globalIniPath = '~/.zentao/.zentao'; //配置文件地址
+var workConfigPath = '~/.zentao/.zentao.work';
+var zentaoConfig = '~/.zentao/conf/conf.ini';
+
+var zentaosh = '~/.zentao/.zentao.sh';
+var commitFile = '~/.zentao/tmp/.zentao.commit';//TODO 多用户处理
+
+
 var currentPath = process.cwd();
-var zentaosh = '~/.zentao-sh';
 
 process.stdin.resume();
 
 if (os.type() == 'Windows_NT') {
 	globalIniPath = '.zentao';
-    commitFile = '.zentao.commit';
     workConfigPath = '.zentao.work';
-    zentaosh = '.zentao-sh';
+    zentaoConfig = 'conf.ini';
+    
+    commitFile = '.zentao.commit';
+    zentaosh = '.zentao.sh';
 }else{
-    globalIniPath = process.env.HOME + "/.zentao";
-    commitFile = process.env.HOME + '/.zentao.commit';
-    workConfigPath = process.env.HOME + '/.zentao.work';
-    zentaosh = process.env.HOME + '/.zentao-sh';
+    globalIniPath = process.env.HOME + "/.zentao/conf/.zentao";
+    workConfigPath = process.env.HOME + '/.zentao/conf/.zentao.work';
+    zentaoConfig = process.env.HOME + '/.zentao/conf/conf.ini';
+    
+    zentaosh = process.env.HOME + '/.zentao/bin/.zentao.sh';
+    commitFile = process.env.HOME + '/.zentao/tmp/.zentao.commit';
 }
 
 var logger = base.logger;
@@ -54,11 +66,35 @@ process.on('uncaughtException', function (error) {
 	logger(error.name  + ":" + error.message + "\r\n" + error.stack);
     console.error(error.stack);
 });
-
+var zentaoIni = {};
 /**
  * 主流程函数
  */
 (function(){
+    
+    //读取语言信息
+    zentaoIni =  base.parseIniFile(zentaoConfig);
+    if(getZentaoIni('lang') == undefined){
+        var langs = Lang.getLangs();
+        
+        for(var i = 0; i < langs.length; i++){
+            process.stdout.write(i+ ': ' + langs[i] + "\r\n");
+        }
+        
+        
+        var langIndex = 0;
+        
+        do{
+            process.stdout.write(getText('Please Select Your Language: '));
+            langIndex = stdinRead();
+        }while(typeof langs[parseInt(langIndex)] != "string");
+        
+        Lang.chooseLang(langs[parseInt(langIndex)]);
+        
+        saveZentaoIni('lang', Lang.langName);
+    }else{
+		Lang.chooseLang(getZentaoIni('lang'));
+	}
     
     if(isFileEmpty(globalIniPath)){
         logger("start install zentao");
@@ -76,6 +112,32 @@ process.on('uncaughtException', function (error) {
 
 
 })();
+
+function saveZentaoIni(key, val){
+    if(!zentaoIni){
+        zentaoIni = {};
+    }
+
+    if(zentaoIni['zentao'] == undefined){
+        zentaoIni['zentao'] = {};
+    }
+    
+    zentaoIni["zentao"][key] = val;
+    
+    base.saveIniFile(zentaoConfig, zentaoIni);
+}
+
+function getZentaoIni(key){    
+    if(!zentaoIni){
+        zentaoIni = {};
+    }
+
+    if(zentaoIni['zentao'] == undefined){
+        zentaoIni['zentao'] = {};
+    }
+    
+    return zentaoIni['zentao'][key];
+}
 
 function isFileEmpty(file){
     if(!fs.existsSync(file)){
@@ -99,51 +161,42 @@ function isFileEmpty(file){
  * 安装程序
  */
 function install(){
+    
     if(os.type().toLowerCase() != 'linux'){
-        process.stdout.write('不支持的操作系统' + os.type() + ', 只支持linux系统\r\n');
+        process.stdout.write(getText('UnsuportedOS') + '\r\n');
         return;
     }
     
-    process.stdout.write("开始安装zentao-for-linux\r\n");
+    process.stdout.write(getText('StartInstallZentao') + '\r\n');
     
     var contents = fs.readFileSync(process.env.HOME + '/.bashrc', 'utf8');
     
-    //判断是否添加了命令接管
-    if(contents.indexOf('.zentao-sh') == -1){
-        //复制命令接管脚本文件到用户目录
-        contents = fs.readFileSync('.zentao-sh', 'utf8');
-        fs.writeFileSync(zentaosh, contents);
-        
-        //每次启动终端使脚本接管生效
-        fs.appendFileSync(process.env.HOME + '/.bashrc', 'source ~/.zentao-sh');
-        
-        //创建禅道主程序启动脚本链接
-        child.execSync('ln -s ' + currentPath + '/zentao /usr/bin/zentao');
-    }
-    
-    process.stdout.write("你没有添加过禅道站点,是否添加(y or n): ");
+    process.stdout.write(getText('IsAddWebsite') + ": ");
     var chunk = stdinRead();
     websiteMap = {};
 
+    var urlRegexp = /^https?:\/\/(.*)\/.*$/;
     if(chunk == 'y'){
         while(true){
-            process.stdout.write("请输入站点名称: ");
+            process.stdout.write(getText("EnterWebsiteName") + ": ");
             var websiteName = stdinRead();
             
-            process.stdout.write("请输入站点地址: ");
-            var url = stdinRead();
+            var url = "";
+            do{
+				process.stdout.write(getText('EnterWebsiteURI') + ": ");
+                url = stdinRead();
+            }while(!urlRegexp.test(url))
             
-            
-            process.stdout.write("请输入站点用户名: ");
+            process.stdout.write(getText("EnterUserName") + ": ");
             var account = stdinRead();
             
             
-            process.stdout.write("请输入站点密码: ");
+            process.stdout.write(getText("EnterPassword") + ": ");
             var password = stdinRead();
             
             websiteMap[websiteName] = {url : url, account: account, password: password};
             
-            process.stdout.write("是否继续添加站点(y or n): ");
+            process.stdout.write(getText('IsContinueAddWebsite') + ": ");
             chunk = stdinRead();
             if(chunk == 'n'){
                 base.saveIniFile(globalIniPath, websiteMap);
@@ -204,7 +257,6 @@ function bindWorkRepository(){
                             resolve();
                         }else{
                             logger("登录禅道站点失败: " + zentaoAPI.url + ", 错误信息:" + msg);
-                            console.log("登录禅道站点失败: " + zentaoAPI.url + ", 错误信息:" + msg);
                         }
                     });            
             });
@@ -217,7 +269,7 @@ function bindWorkRepository(){
                     process.stdout.write(i + " : " + repos[i] + "\r\n");
                 }
                 
-                process.stdout.write("请输入数字选择仓库地址(0-" + (repos.length - 1) + "):");
+                process.stdout.write(getText("EnterRepository") + "(0-" + (repos.length - 1) + "):");
                 
                 var chunk = stdinRead();
                 logger(chunk);
@@ -367,7 +419,7 @@ function initTUI(){
 
 function destroyTUI(){
     screen.destroy();
-    base.logToConsole = true;
+    base.logToConsole = false;
 }
 /**
  * 初始化站点列表
@@ -375,12 +427,12 @@ function destroyTUI(){
 function initSiteTable(onRowSelect) {
 
     siteTable = new ListTable(screen)
-        siteTable.setTitle("站点选择");
+    siteTable.setTitle(getText('SiteTitle'));
 
     //FIXME 当按上下箭头时此处显示异常
-    siteTable.setTip("按↑↓选择项目，按Enter进入操作");
+    siteTable.setTip(getText('siteTableTip'));
 
-    siteTable.setHead(['站点名称', '站点地址', '用户名', '密码']);
+    siteTable.setHead([getText('SiteName'), getText('SiteUrl'), getText('UserName'), getText('Password')]);
 
     var websites = [];
     for (var name in websiteMap) {
@@ -439,7 +491,7 @@ function initZentaoTui(website){
         if (isSucess) {
             bugTable = initBugTable();
         } else {
-            msg.display("登录失败:" + message, 3000, function(){
+            msg.display(getText('LoginFailed') + ":" + message, 3000, function(){
                 destroyTUI();
             });
         }
@@ -469,16 +521,19 @@ function initBugTable() {
 	
 	var selectedIndex = 0;
 	var tabBugSelected = true;
-	
+    
+	var bugTH = [getText('Select'), getText('BugID'), getText('BugTitle'), getText('BugResolved')];
+    var taskTH = [getText('Select'), getText('TaskID'), getText('TaskName'), getText('ConsumedTime'), getText('RemainTime'), getText('TaskFinished')];
+    
 	bugTable = new ListTable(screen);
-	bugTable.setTitle("Bug与任务");
+	bugTable.setTitle(getText('BugTableTitle'));
 	
-	bugTable.setTip("按↑↓选择项目，按Space键切换选择状态,按0键切换解决状态\r\n按Tab键切换工作区域,按Shift + Tab键切换任务和BUG");
+	bugTable.setTip(getText('BugTableTip'));
 	
-	bugTable.setHead(['选择', 'Bug ID', '标题', '已解决']);
+	bugTable.setHead(bugTH);
 	
 	var bugButton = blessed.text({
-			content : getText('BUG'),
+			content : getText(getText('BugTab')),
 			top : 1,
 			left : 2,
 			width : 4,
@@ -490,7 +545,7 @@ function initBugTable() {
 		});
 	
 	var renwuButton = blessed.text({
-			content : getText('任务'),
+			content : getText(getText('TaskTab')),
 			top : 1,
 			left : 8,
 			width : 4,
@@ -513,7 +568,7 @@ function initBugTable() {
 			renwuButton.style.bg = '#000';
 			renwuButton.style.fg = '#fff';
 			
-			bugTable.setHead(['选择', 'Bug ID', '标题', '已解决']);
+			bugTable.setHead(bugTH);
 			
 			zentaoAPI.getBugList(function (bugs) {
 				var rows = [];
@@ -536,7 +591,7 @@ function initBugTable() {
 			bugButton.style.bg = '#000';
 			bugButton.style.fg = '#fff';
 			
-			bugTable.setHead(['选择', '任务 ID', '任务名称', '已用时', '剩余用时', '已完成']);
+			bugTable.setHead(taskTH);
 			
 			zentaoAPI.getTaskList(function (tasks) {
 				var rows = [];
@@ -552,7 +607,7 @@ function initBugTable() {
 	});
 	
 	var okBtn = blessed.button({
-			content : getText('确定'),
+			content : getText('OK'),
 			top : screen.height - 3,
 			left : 4,
 			width : 4,
@@ -569,10 +624,10 @@ function initBugTable() {
 		});
 	
 	var cancleBtn = blessed.button({
-			content : getText('取消'),
+			content : getText('Cancel'),
 			top : screen.height - 3,
 			left : 10,
-			width : 4,
+			width : 8,
 			height : 1,
 			aligin : 'center',
 			style : {
@@ -735,7 +790,7 @@ function workTimeDialog(selectedIndex, isFinished) {
 	
 	var rowData = bugTable._data[selectedIndex];
 	var title = blessed.text({
-			content : "工时统计",
+			content : getText('WorkTimeTitle'),
 			left : 0,
 			top : 0,
 			style : {
@@ -747,7 +802,7 @@ function workTimeDialog(selectedIndex, isFinished) {
 	form.append(title);
 	
 	var taskLabel = blessed.text({
-			content : "任务名称",
+			content : getText('TaskName'),
 			left : 2,
 			top : 3,
 			style : {
@@ -771,7 +826,7 @@ function workTimeDialog(selectedIndex, isFinished) {
 	form.append(taskName);
 	
 	var consumedLabel = blessed.text({
-			content : "已耗时",
+			content : getText('ConsumedTime'),
 			left : 2,
 			top : 5,
 			style : {
@@ -800,7 +855,7 @@ function workTimeDialog(selectedIndex, isFinished) {
 	consumedTextInput.setValue(rowData[3]);
 	
 	var leftLabel = blessed.text({
-			content : "剩余耗时",
+			content : getText('RemainTime') ,
 			left : 2,
 			top : 7,
 			style : {
@@ -829,7 +884,7 @@ function workTimeDialog(selectedIndex, isFinished) {
 	leftTextInput.setValue(isFinished ? '0' : rowData[4]);
 	
 	var finishedLabel = blessed.text({
-			content : "已完成",
+			content : getText('TaskFinished'),
 			left : 2,
 			top : 9,
 			style : {
@@ -840,28 +895,8 @@ function workTimeDialog(selectedIndex, isFinished) {
 	
 	form.append(finishedLabel);
 	
-	var finishedCheckBox = blessed.checkbox({
-			parent : form,
-			mouse : true,
-			keys : true,
-			style : {
-				bg : '#fff',
-				fg : '#000'
-			},
-			height : 1,
-			width : 5,
-			checked : isFinished,
-			left : 13,
-			top : 9,
-			name : 'finished'
-		});
-	
-	finishedCheckBox.on("check", function () {
-		leftTextInput.setValue(0);
-	});
-	
 	var okBtn = blessed.button({
-			content : getText('确定'),
+			content : getText('OK'),
 			top : 11,
 			left : 13,
 			width : 4,
@@ -879,10 +914,10 @@ function workTimeDialog(selectedIndex, isFinished) {
 		});
 	
 	var cancleBtn = blessed.button({
-			content : getText('取消'),
+			content : getText('Cancel'),
 			top : 11,
 			left : 18,
-			width : 4,
+			width : 8,
 			height : 1,
 			parent : form,
 			aligin : 'center',
@@ -931,11 +966,4 @@ function workTimeDialog(selectedIndex, isFinished) {
 		this.readInput();
 	});
 	
-}
-
-/**
- * 语言处理
- */
-function getText(textName) {
-	return textName;
 }

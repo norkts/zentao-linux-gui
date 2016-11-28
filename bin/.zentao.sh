@@ -1,7 +1,7 @@
 #!/bin/bash
 svnpath=/usr/bin/svn
 gitpath=/usr/bin/git
-zentaopath=/usr/bin/zentao
+zentaopath=~/.zentao/bin/zentao
 exepath=$svnpath
 
 function svn(){
@@ -38,6 +38,6 @@ function git(){
 
 function runZentao(){
 	$zentaopath $@;
-	$exepath $@ -F ~/.zentao.commit;
+	$exepath $@ -F ~/.zentao/tmp/.zentao.commit;
 	$zentaopath $@;
 }

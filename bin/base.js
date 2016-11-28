@@ -5,6 +5,7 @@ var PathModule = require('path');
 
 var argvs = process.argv;
 var installDir = PathModule.dirname(argvs[1]);
+installDir = PathModule.dirname(installDir) + "/log";
 
 var http = require("http");
 var URL = require("url");
@@ -56,12 +57,12 @@ var ARROW_DOWN_TEXT = '↓';
 		this._screen.append(this._table);
 		this._title = "";
 		
-		this._titleText = blessed.text({top: 0, left: 2, content: getText(this._title), style:{
+		this._titleText = blessed.text({top: 0, left: 2, content: this._title, style:{
 			fg: FONT_COLOR
 		}});
 		
 		this._tip = "";
-		this._tipText = blessed.text({top: this._screen.height - 2, left: 0, content: getText(this._tip), style:{
+		this._tipText = blessed.text({top: this._screen.height - 2, left: 0, content: this._tip, style:{
 			fg: FONT_COLOR
 		}});
 		
@@ -489,6 +490,10 @@ var ARROW_DOWN_TEXT = '↓';
 (function(N){
     
     function parseIniFile(file){
+        if(!fs.existsSync(file)){
+            return false;
+        }
+        
         var result = {};
         //读取ini文件
         var contents = fs.readFileSync(file, "UTF-8");
@@ -532,11 +537,40 @@ var ARROW_DOWN_TEXT = '↓';
 
 module.exports.getText = getText;
 
+module.exports.Lang = {
+    getText: function(textName){
+        
+        if(this.DATA[this.langName][textName] == undefined){
+            return textName;
+        }
+        
+        return this.DATA[this.langName][textName];
+    },
+    chooseLang: function(langName){
+        this.langName = this.DATA[langName] == undefined ? 'English' : langName;
+    },
+    getLangs: function(){
+        var arr = [];
+        
+        for(var name in this.DATA){
+            arr.push(name);
+        }
+        
+        return arr;
+    },
+    DATA: {
+        'English': require('./lang/English.js'),
+        'Chinese': require('./lang/Chinese.js')
+    },
+    langName: 'Chinese'
+};
+
+
 /**
  * 语言处理
  */
 function getText(textName){
-	return textName;
+    return module.exports.Lang.getText(textName);
 }
 
 function executor(callback){
@@ -547,7 +581,7 @@ function executor(callback){
 
 module.exports.executor = executor;
 
-module.exports.logToConsole = true;
+module.exports.logToConsole = false;
 /**
  * 日志记录
  */
