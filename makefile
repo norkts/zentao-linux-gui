@@ -14,7 +14,7 @@ install:
 	mkdir $(targetDir)/tmp
 	mkdir $(targetDir)/conf
 	
-	wget https://nodejs.org/dist/v6.9.1/node-v6.9.1-linux-x$(ARCH).tar.xz
+	wget https://nodejs.org/dist/v6.9.1/node-v6.9.1-linux-x$(ARCH).tar.xz --no-check-certificate
 	xz -d node-v6.9.1-linux-x$(ARCH).tar.xz
 	tar xvf node-v6.9.1-linux-x$(ARCH).tar
 	cp node-v6.9.1-linux-x$(ARCH)/bin/node mkdir $(targetDir)/bin/node
