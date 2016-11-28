@@ -33,5 +33,8 @@ Lang["SiteUrl"] = "站点地址";
 Lang["UserName"] = "用户名";
 Lang["Password"] = "密码";
 Lang["EnterRepository"] = "请输入仓库数字";
+Lang["CheckedIcon"] = "●";
+Lang["UnCheckedIcon"] = "○";
+
 
 module.exports = Lang;

@@ -275,8 +275,6 @@ function bindWorkRepository(){
                 logger(chunk);
                 var num = parseInt(chunk);
                 
-                process.stdout.write("你选择了:" + repos[num]);
-                
                 saveWorkConfig(selectedWebsiteName, repos[num]);
                 
                 view();

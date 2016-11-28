@@ -33,6 +33,9 @@ Lang["SiteUrl"] = "Site Url";
 Lang["UserName"] = "UserName";
 Lang["Password"] = "Password";
 Lang["EnterRepository"] = "Please Enter Repository Number";
+Lang["CheckedIcon"] = "●";
+Lang["UnCheckedIcon"] = "○";
+
 
 
 module.exports = Lang;
