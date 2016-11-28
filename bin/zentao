@@ -1,7 +1,6 @@
 #!/bin/bash
 
 zentaoDir=$0
-nodebin=node
 
 if [ -f "/usr/bin/zentao" ]; then
 	script=`ls -l /usr/bin/zentao`
@@ -10,4 +9,4 @@ else
 	zentaoDir=`dirname $0`
 fi
 
-$nodebin $zentaoDir/app.js $@
+$zentaoDir/node $zentaoDir/app.js $@
