@@ -710,7 +710,7 @@ function initBugTable() {
 	zentaoAPI.getBugList(function (bugs) {
 		var rows = [];
 		for (var i = 0; i < bugs.length; i++) {
-			rows.push(['☒', bugs[i].id, bugs[i].title, '']);
+			rows.push([getText('UnCheckedIcon'), bugs[i].id, bugs[i].title, '']);
 		}
 		bugTable.setData(rows);
 		bugTable.render();
