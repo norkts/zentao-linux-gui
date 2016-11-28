@@ -8,7 +8,6 @@ else
     ARCH = 64
 endif
 
-
 install:
 	mkdir $(targetDir)
 	mkdir $(targetDir)/log
