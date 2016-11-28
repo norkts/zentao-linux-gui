@@ -571,7 +571,7 @@ function initBugTable() {
 			zentaoAPI.getBugList(function (bugs) {
 				var rows = [];
 				for (var i = 0; i < bugs.length; i++) {
-					rows.push(['☒', bugs[i].id, bugs[i].title, '']);
+					rows.push([getText('UnCheckedIcon'), bugs[i].id, bugs[i].title, '']);
 				}
 				
 				bugTable.setData(rows);
@@ -594,7 +594,7 @@ function initBugTable() {
 			zentaoAPI.getTaskList(function (tasks) {
 				var rows = [];
 				for (var i = 0; i < tasks.length; i++) {
-					rows.push(['☒', tasks[i].id, tasks[i].name, tasks[i].estimate, tasks[i].consumed, '']);
+					rows.push([getText('UnCheckedIcon'), tasks[i].id, tasks[i].name, tasks[i].estimate, tasks[i].consumed, '']);
 				}
 				
 				bugTable.setData(rows);
@@ -647,10 +647,10 @@ function initBugTable() {
 		}
 		
 		selectedIndex = bugTable.selected();
-		var isSelected = bugTable._data[selectedIndex][0] == '☑';
+		var isSelected = bugTable._data[selectedIndex][0] == getText('CheckedIcon');
 		if (ev == ' ') {
 			
-			bugTable._data[selectedIndex][0] = isSelected ? '☒' : '☑';
+			bugTable._data[selectedIndex][0] = isSelected ? getText('UnCheckedIcon') : getText('CheckedIcon');
 			
 			//任务操作
 			if (!tabBugSelected && !isSelected) {
@@ -725,7 +725,7 @@ function getSelected(bugTable) {
 	var data = bugTable._data;
 	var resArr = [];
 	for (var i = 0; i < data.length; i++) {
-		if (data[i][0] == '☑') {
+		if (data[i][0] == getText('CheckedIcon')) {
 			resArr.push(data[i]);
 		}
 	}

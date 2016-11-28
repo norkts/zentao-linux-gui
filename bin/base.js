@@ -15,9 +15,6 @@ var FONT_COLOR = '#ffffff';
 
 var ROW_SELECT_BACK_COLOR = '#C0C0C0';
 
-var CHECKED_TEXT = '☑';
-var UNCHECKED_TEXT = '☒';
-
 var SELECTED_TEXT = '√';
 var UNSELECTED_TEXT = '×';
 
