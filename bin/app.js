@@ -203,13 +203,14 @@ function addWebsite(){
             }
         }
     }
+	
+	websiteMap = base.parseIniFile(globalIniPath);
 }
 
 /**
  * 显示图形界面
  */
 function view(){
-    websiteMap = base.parseIniFile(globalIniPath);
     workconfig = base.parseIniFile(workConfigPath);
     if(workconfig[currentPath] == undefined 
         || workconfig[currentPath].name == undefined 
@@ -325,7 +326,8 @@ function saveWorkConfig(websiteName, repository){
     configArr.push('account=' + website.account);
     configArr.push('password=' + website.password);
     
-    fs.writeFileSync(workConfigPath, configArr.join('\r\n'));
+    fs.writeFileSync(workConfigPath, configArr.join('\r\n'));	
+	
 }
 
 /**
