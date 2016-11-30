@@ -400,6 +400,7 @@ function postCommit(commitFile){
 		function postSVNLog(svnLog){
 			taskTotal++;
 			zentaoAPI.saveSVNLog(svnLog, function(){
+				logger("--saveSVNLog--" + JSON.stringify(svnLOg));
 				taskTotal--;
 				checkFinished(taskTotal);
 			});
@@ -474,6 +475,8 @@ function parseGitLog(lines){
 	svnLog.repoUrl = workconfig[currentPath]['repository'];
 	svnLog.repoRoot = currentPath;
 	
+	logger("--parseGitLog--" + JSON.stringify(svnLOg));
+	
 	return svnLog;
 }
 
@@ -513,6 +516,8 @@ function parseSVNLog(lines){
 	svnLog.message = messages.join('\r\n');
 	svnLog.repoUrl = workconfig[currentPath]['repository'];
 	svnLog.repoRoot = currentPath;
+	
+	logger("--parseSVNLog--" + JSON.stringify(svnLOg));
 	
 	return svnLog;
 }
