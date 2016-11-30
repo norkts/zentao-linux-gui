@@ -384,11 +384,27 @@ var ARROW_DOWN_TEXT = '↓';
             name = "bug-resolve-" + bugId + ".json";
         }
         
-        updateUrl = self.url + name;
+        var updateUrl = self.url + name;
         
         self.http.post(updateUrl, data, undefined, callback);
                 
     }
+	
+	ZentaoAPI.prototype.editBug = function(bugId, comment, callback){
+		
+		var data = "comment=" +encodeURIComponent(comment);
+		
+		var name = "index.php?t=json&m=bug&f=edit&bugID=" + bugId;
+		
+		if(!self.isGetType){
+			name = "bug-edit-"+ bugId +"-true.json";
+		}
+		
+		var updateUrl = self.url + name;
+		var self = this;
+		
+		self.http.post(updateUrl, data, undefined, callback);
+	}
     
     ZentaoAPI.prototype.getTaskList = function(callback){
         

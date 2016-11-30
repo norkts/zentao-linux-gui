@@ -27,6 +27,7 @@ var zentaoConfig = '~/.zentao/conf/conf.ini';
 var zentaosh = '~/.zentao/.zentao.sh';
 var commitFile = '~/.zentao/tmp/.zentao.commit';//TODO 多用户处理
 
+var commitLogFile = '~/.zentao/tmp/.commit.log';
 
 var currentPath = process.cwd();
 
@@ -39,6 +40,7 @@ if (os.type() == 'Windows_NT') {
     
     commitFile = '.zentao.commit';
     zentaosh = '.zentao.sh';
+	commitLogFile='.commit.log';
 }else{
     globalIniPath = process.env.HOME + "/.zentao/conf/.zentao";
     workConfigPath = process.env.HOME + '/.zentao/conf/.zentao.work';
@@ -46,6 +48,7 @@ if (os.type() == 'Windows_NT') {
     
     zentaosh = process.env.HOME + '/.zentao/bin/.zentao.sh';
     commitFile = process.env.HOME + '/.zentao/tmp/.zentao.commit';
+	commitLogFile = process.env.HOME + '/.zentao/tmp/.commit.log';
 }
 
 var logger = base.logger;
@@ -95,18 +98,14 @@ var zentaoIni = {};
     }else{
 		Lang.chooseLang(getZentaoIni('lang'));
 	}
+    	
     
-    if(isFileEmpty(globalIniPath)){
-        logger("start install zentao");
-        //无配置文件或安装模式
-        install();
-    }
-    websiteMap = base.parseIniFile(globalIniPath);
         
     if(isFileEmpty(workConfigPath)){
         //绑定目录-站点-repository
         bindWorkRepository();
     }else{
+		websiteMap = base.parseIniFile(globalIniPath);
         view();
     }
 
@@ -160,7 +159,7 @@ function isFileEmpty(file){
 /**
  * 安装程序
  */
-function install(){
+function addWebsite(){
     
     if(os.type().toLowerCase() != 'linux'){
         process.stdout.write(getText('UnsuportedOS') + '\r\n');
@@ -211,8 +210,7 @@ function install(){
  */
 function view(){
     
-    
-    var workconfig = base.parseIniFile(workConfigPath);
+    workconfig = base.parseIniFile(workConfigPath);
     if(workconfig[currentPath] == undefined 
         || workconfig[currentPath].name == undefined 
         || websiteMap[workconfig[currentPath].name] == undefined){
@@ -236,8 +234,11 @@ function view(){
 function bindWorkRepository(){                                                                                                          
     process.stdin.resume();
     
+	addWebsite();
+	
     logger("bindWorkRepository start");
 
+	
     var selectedWebsiteName = undefined;
     
     executor(function(resolve){
@@ -333,7 +334,7 @@ function saveWorkConfig(websiteName, repository){
 function postCommit(commitFile){
     logger("--开始提交commit信息到禅道--");
     
-    var workconfig = base.parseIniFile(workConfigPath);
+    workconfig = base.parseIniFile(workConfigPath);
     initZentaoAPI(workconfig[currentPath], function(isSuccess, msg){
         logger("--接口登录成功:result=" + isSuccess + ", msg=" + msg);
         
@@ -348,41 +349,62 @@ function postCommit(commitFile){
 
         var taskTotal = 0;
         if(matches != undefined){
+			//任务更新
             for(var i = 0; i < matches.length; i++){
                 var match = matches[i].match(taskReg);
                 var task = {id: match[2], consumed: match[3], left: match[4]};
                 taskTotal++;
                 
                 logger("--开始更新task#"+ task.id + ", 任务数=" + taskTotal);
+                if(!match[1]){
+					zentaoAPI.updateTask(task, function(body, status){
+						taskTotal--;
+						logger("--task#"+ task.id + "更新成功: status=" + status);
+						checkFinished(taskTotal);
+					});	
+				}
                 
-                zentaoAPI.updateTask(task, function(body, status){
-                    taskTotal--;
-                    logger("--task#"+ task.id + "更新成功: status=" + status);
-                    checkFinished(taskTotal);
-                });
             }
         }
         
         matches = contents.match(bugRegAll);
         if(matches != undefined){
+			
+			//BUG更新
             for(var i = 0; i < matches.length; i++){
                 var match = matches[i].match(bugReg);
                 var bugId = match[2];
                 taskTotal++;
                 
                 logger("--开始更新bug#"+ bugId + ", 任务数=" + taskTotal);
-                zentaoAPI.updateBug(bugId, function(body, status){
-                    logger("--bug#"+ bugId + "更新成功,status=" + status);
-                    taskTotal--;
-                    checkFinished(taskTotal);
-                });
+				if(!match[1]){
+					zentaoAPI.updateBug(bugId, function(body, status){
+						logger("--bug#"+ bugId + "更新成功,status=" + status);
+						taskTotal--;
+						checkFinished(taskTotal);
+					});	
+				}
+                
             }
         }
-        
+		
+        //reversion信息，commitMessage信息，repo信息处理
+		var svnLog = parseCommitLog();
+		postSVNLog(svnLog);
+		
         checkFinished(taskTotal);
+		
+		
+		function postSVNLog(svnLog){
+			taskTotal++;
+			zentaoAPI.saveSVNLog(svnLog, function(){
+				taskTotal--;
+				checkFinished(taskTotal);
+			});
+		}
     });
     
-    //TODO reversion信息，commitMessage信息，repo信息处理
+    
     
     function checkFinished(total){
         logger("--正在执行的任务数:"+ total + "--");
@@ -393,6 +415,104 @@ function postCommit(commitFile){
             process.exit(0);
         }
     }
+}
+
+function parseCommitLog(){
+	var contents = fs.readFileSync(commitLogFile, "utf8");
+	var lines = contents.split('\r\n');
+	
+	var isGit = lines[0].indexOf('git') > 0;
+	
+	return isGit ? parseGitLog(lines.slice(1)) : parseSVNLog(lines.slice(1));
+}
+
+function parseGitLog(lines){
+	var revisionReg = /^commit\s+(.+)$/;
+	var svnLog = {files:[]};
+	var fileChangeReg = /^([A-Z])\s+(.+)$/;
+	
+	var isFileStart = false;
+	var msseageStart = true;
+	
+	var messages = [];
+	for(var i = 0; i < lines.length; i++){
+		var matches = lines[i].match(revisionReg);
+		if(matches != undefined){
+			svnLog.revision = matches[1];
+			continue;
+		}
+		
+		if(msseageStart == false && line[i] == ''){
+			msseageStart = true;
+			continue;
+		}
+		
+		if(msseageStart == true && line[i] == ''){
+			msseageStart = false;
+			isFileStart = true;
+			continue;
+		}
+		
+		if(msseageStart){
+			messages.push(line[i]);
+			continue;
+		}
+		
+		if(isFileStart){
+			var matches = lines[i].match(revisionReg);
+			if(matches != undefined){
+				svnLog.files.push(matches[2]);	
+			}
+			
+			continue;
+		}
+	}
+	
+	svnLog.message = messages.join('\r\n');
+	svnLog.repoUrl = workconfig[currentPath]['repository'];
+	svnLog.repoRoot = currentPath;
+	
+	return svnLog;
+}
+
+function parseSVNLog(lines){
+	var revisionReg = /^r(\d+).*$/;
+	var fileChangeReg = /^\s*([A-Z])\s+(.+)$/;
+	var svnLog = {files:[]};
+	
+	var isFileStart = false;
+	var msseageStart = true;
+	
+	var messages = [];
+	for(var i = 0; i < lines.length; i++){
+		var matches = lines[i].match(revisionReg);
+		if(matches != undefined){
+			svnLog.revision = matches[1];
+			continue;
+		}
+		
+		matches = lines[i].match(fileChangeReg);
+		if(matches != undefined){
+			svnLog.files.push(matches[2]);
+			isFileStart = true;
+			continue;
+		}
+		
+		if(isFileStart && lines == ''){
+			msseageStart = true;
+			continue;
+		}
+		
+		if(msseageStart && i < line.length - 1){
+			messages.push(line[0]);
+		}
+	}
+	
+	svnLog.message = messages.join('\r\n');
+	svnLog.repoUrl = workconfig[currentPath]['repository'];
+	svnLog.repoRoot = currentPath;
+	
+	return svnLog;
 }
 
 /**
@@ -594,7 +714,7 @@ function initBugTable() {
 			zentaoAPI.getTaskList(function (tasks) {
 				var rows = [];
 				for (var i = 0; i < tasks.length; i++) {
-					rows.push([getText('UnCheckedIcon'), tasks[i].id, tasks[i].name, tasks[i].estimate, tasks[i].consumed, '']);
+					rows.push([getText('UnCheckedIcon'), tasks[i].id, tasks[i].name, tasks[i].consumed, tasks[i].left, '']);
 				}
 				
 				bugTable.setData(rows);
