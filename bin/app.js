@@ -209,7 +209,7 @@ function addWebsite(){
  * 显示图形界面
  */
 function view(){
-    
+    websiteMap = base.parseIniFile(globalIniPath);
     workconfig = base.parseIniFile(workConfigPath);
     if(workconfig[currentPath] == undefined 
         || workconfig[currentPath].name == undefined 
