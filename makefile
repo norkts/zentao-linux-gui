@@ -7,6 +7,7 @@ ifeq ($(shell getconf LONG_BIT), 32)
 else
     ARCH = 64
 endif
+nodefile=node-v6.9.1-linux-x$(ARCH)
 
 install:
 	mkdir $(targetDir)
@@ -14,9 +15,18 @@ install:
 	mkdir $(targetDir)/tmp
 	mkdir $(targetDir)/conf
 	
-	wget https://nodejs.org/dist/v6.9.1/node-v6.9.1-linux-x$(ARCH).tar.xz --no-check-certificate
-	xz -d node-v6.9.1-linux-x$(ARCH).tar.xz
-	tar xvf node-v6.9.1-linux-x$(ARCH).tar
+	ifeq ($(nodefile).tar.gz, $(wildcard $(nodefile).tar.gz))
+		wget https://nodejs.org/dist/v6.9.1/$(nodefile).tar.xz --no-check-certificate
+	else
+		xz -d node-v6.9.1-linux-x$(ARCH).tar.xz
+	endif
+	
+	ifeq ($(nodefile).tar, $(wildcard $(nodefile).tar))
+		echo $(nodefile).tar
+	else
+		tar xvf node-v6.9.1-linux-x$(ARCH).tar	
+	endif
+	
 	cp node-v6.9.1-linux-x$(ARCH)/bin/node mkdir $(targetDir)/bin/node
 	
 	cp -R $(sourceDir)/bin $(targetDir)
