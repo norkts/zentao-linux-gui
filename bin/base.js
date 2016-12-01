@@ -353,7 +353,7 @@ var ARROW_DOWN_TEXT = '↓';
 
         var operate = "recordEstimate";
 
-        var data = "id%5B1%5D=" + taskId + "&dates%5B1%5D=" + now() + "&consumed%5B1%5D=" + task.currentConsumed
+        var data = "id%5B1%5D=" + taskId + "&dates%5B1%5D=" + now() + "&consumed%5B1%5D=" + consumed
             + "&left%5B1%5D=" + left + "&work%5B1%5D=";
 
         if (parseInt(left) < 1){
