@@ -332,6 +332,8 @@ function saveWorkConfig(websiteName, repository){
  * 提交消息之后
  */
 function postCommit(commitFile){
+	
+	base.logToConsole = true;
     logger("--开始提交commit信息到禅道--");
     
     workconfig = base.parseIniFile(workConfigPath);
