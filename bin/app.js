@@ -75,7 +75,7 @@ var zentaoIni = {};
  */
 (function(){
     
-    //读取语言信息
+	//读取语言信息
     zentaoIni =  base.parseIniFile(zentaoConfig);
     if(getZentaoIni('lang') == undefined){
         var langs = Lang.getLangs();
@@ -98,9 +98,7 @@ var zentaoIni = {};
     }else{
 		Lang.chooseLang(getZentaoIni('lang'));
 	}
-    	
-    
-        
+	
     if(isFileEmpty(workConfigPath)){
         //绑定目录-站点-repository
         bindWorkRepository();
@@ -400,7 +398,7 @@ function postCommit(commitFile){
 		function postSVNLog(svnLog){
 			taskTotal++;
 			zentaoAPI.saveSVNLog(svnLog, function(){
-				logger("--saveSVNLog--" + JSON.stringify(svnLOg));
+				logger("--saveSVNLog--" + JSON.stringify(svnLog));
 				taskTotal--;
 				checkFinished(taskTotal);
 			});
@@ -422,7 +420,7 @@ function postCommit(commitFile){
 
 function parseCommitLog(){
 	var contents = fs.readFileSync(commitLogFile, "utf8");
-	var lines = contents.split('\r\n');
+	var lines = contents.split(/[\r\n]{1,2}/);
 	
 	var isGit = lines[0].indexOf('git') > 0;
 	
@@ -435,8 +433,8 @@ function parseGitLog(lines){
 	var fileChangeReg = /^([A-Z])\s+(.+)$/;
 	
 	var isFileStart = false;
-	var msseageStart = true;
-	
+	var msseageStart = false;
+
 	var messages = [];
 	for(var i = 0; i < lines.length; i++){
 		var matches = lines[i].match(revisionReg);
@@ -445,24 +443,28 @@ function parseGitLog(lines){
 			continue;
 		}
 		
-		if(msseageStart == false && line[i] == ''){
+		if(isFileStart && lines[i] == ''){
+			break;
+		}
+		
+		if(msseageStart == false && lines[i] == ''){
 			msseageStart = true;
 			continue;
 		}
 		
-		if(msseageStart == true && line[i] == ''){
+		if(msseageStart == true && lines[i] == ''){
 			msseageStart = false;
 			isFileStart = true;
 			continue;
 		}
 		
 		if(msseageStart){
-			messages.push(line[i]);
+			messages.push(lines[i]);
 			continue;
 		}
 		
 		if(isFileStart){
-			var matches = lines[i].match(revisionReg);
+			var matches = lines[i].match(fileChangeReg);
 			if(matches != undefined){
 				svnLog.files.push(matches[2]);	
 			}
@@ -475,18 +477,18 @@ function parseGitLog(lines){
 	svnLog.repoUrl = workconfig[currentPath]['repository'];
 	svnLog.repoRoot = currentPath;
 	
-	logger("--parseGitLog--" + JSON.stringify(svnLOg));
+	logger("--parseGitLog--" + JSON.stringify(svnLog));
 	
 	return svnLog;
 }
 
 function parseSVNLog(lines){
 	var revisionReg = /^r(\d+).*$/;
-	var fileChangeReg = /^\s*([A-Z])\s+(.+)$/;
+	var fileChangeReg = /^\s+([A-Z])\s+(.+)$/;
 	var svnLog = {files:[]};
-	
+
 	var isFileStart = false;
-	var msseageStart = true;
+	var msseageStart = false;
 	
 	var messages = [];
 	for(var i = 0; i < lines.length; i++){
@@ -503,13 +505,14 @@ function parseSVNLog(lines){
 			continue;
 		}
 		
-		if(isFileStart && lines == ''){
+		if(isFileStart && lines[i] == ''){
 			msseageStart = true;
+			isFileStart = false;
 			continue;
 		}
 		
-		if(msseageStart && i < line.length - 1){
-			messages.push(line[0]);
+		if(msseageStart && i < lines.length - 2){
+			messages.push(lines[i]);
 		}
 	}
 	
@@ -517,7 +520,7 @@ function parseSVNLog(lines){
 	svnLog.repoUrl = workconfig[currentPath]['repository'];
 	svnLog.repoRoot = currentPath;
 	
-	logger("--parseSVNLog--" + JSON.stringify(svnLOg));
+	logger("--parseSVNLog--" + JSON.stringify(svnLog));
 	
 	return svnLog;
 }

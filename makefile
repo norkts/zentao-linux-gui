@@ -8,6 +8,8 @@ else
     ARCH = 64
 endif
 nodefile=node-v6.9.1-linux-x$(ARCH)
+nodeFileGz=$(nodefile).tar.xz
+nodeFileTar=$(nodefile).tar
 
 install:
 	mkdir $(targetDir)
@@ -15,21 +17,20 @@ install:
 	mkdir $(targetDir)/tmp
 	mkdir $(targetDir)/conf
 	
-	ifeq ($(nodefile).tar.gz, $(wildcard $(nodefile).tar.gz))
+ifeq ($(nodeFileGz), $(wildcard $(nodeFileGz)))
+		echo "$(nodeFileGz) found"
+else
 		wget https://nodejs.org/dist/v6.9.1/$(nodefile).tar.xz --no-check-certificate
-	else
-		xz -d node-v6.9.1-linux-x$(ARCH).tar.xz
-	endif
+		xz -d $(nodeFileGz)
+endif
 	
-	ifeq ($(nodefile).tar, $(wildcard $(nodefile).tar))
-		echo $(nodefile).tar
-	else
-		tar xvf node-v6.9.1-linux-x$(ARCH).tar	
-	endif
-	
-	cp node-v6.9.1-linux-x$(ARCH)/bin/node mkdir $(targetDir)/bin/node
+ifeq ($(nodeFileTar), $(wildcard $(nodeFileTar)))
+		tar xvf $(nodeFileTar)
+endif
 	
 	cp -R $(sourceDir)/bin $(targetDir)
+	cp $(nodefile)/bin/node $(targetDir)/bin/node
+	
 	chmod 777 $(targetDir)/bin/zentao
 	echo "source $(targetDir)/bin/.zentao.sh">~/.bashrc
 	chmod 777 $(targetDir)/bin/.zentao.sh
