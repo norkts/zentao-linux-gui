@@ -73,8 +73,7 @@ var zentaoIni = {};
 /**
  * 主流程函数
  */
-(function(){
-    
+(function(){	
 	//读取语言信息
     zentaoIni =  base.parseIniFile(zentaoConfig);
     if(getZentaoIni('lang') == undefined){
@@ -83,7 +82,6 @@ var zentaoIni = {};
         for(var i = 0; i < langs.length; i++){
             process.stdout.write(i+ ': ' + langs[i] + "\r\n");
         }
-        
         
         var langIndex = 0;
         
@@ -426,20 +424,20 @@ function postCommit(commitFile){
 
 function parseCommitLog(){
 	var contents = fs.readFileSync(commitLogFile, "utf8");
-	var lines = contents.split(/[\r\n]{1,2}/);
+	var lines = contents.split(/\r?\n/);
 	
-	var isGit = lines[0].indexOf('git') > 0;
+	var isGit = lines[0].indexOf('git') > -1;
 	
 	return isGit ? parseGitLog(lines.slice(1)) : parseSVNLog(lines.slice(1));
 }
 
 function parseGitLog(lines){
+	console.log(lines);
 	var revisionReg = /^commit\s+(.+)$/;
 	var svnLog = {files:[]};
 	var fileChangeReg = /^([A-Z])\s+(.+)$/;
 	
 	var isFileStart = false;
-	var msseageStart = false;
 
 	var messages = [];
 	for(var i = 0; i < lines.length; i++){
@@ -449,34 +447,7 @@ function parseGitLog(lines){
 			continue;
 		}
 		
-		if(isFileStart && lines[i] == ''){
-			break;
-		}
-		
-		if(msseageStart == false && lines[i] == ''){
-			msseageStart = true;
-			continue;
-		}
-		
-		if(msseageStart == true && lines[i] == ''){
-			msseageStart = false;
-			isFileStart = true;
-			continue;
-		}
-		
-		if(msseageStart){
-			messages.push(lines[i]);
-			continue;
-		}
-		
-		if(isFileStart){
-			var matches = lines[i].match(fileChangeReg);
-			if(matches != undefined){
-				svnLog.files.push(matches[2]);	
-			}
-			
-			continue;
-		}
+		messages.push(lines[i]);
 	}
 	
 	svnLog.message = messages.join('\r\n');
@@ -492,9 +463,6 @@ function parseSVNLog(lines){
 	var revisionReg = /^r(\d+).*$/;
 	var fileChangeReg = /^\s+([A-Z])\s+(.+)$/;
 	var svnLog = {files:[]};
-
-	var isFileStart = false;
-	var msseageStart = false;
 	
 	var messages = [];
 	for(var i = 0; i < lines.length; i++){
@@ -504,22 +472,7 @@ function parseSVNLog(lines){
 			continue;
 		}
 		
-		matches = lines[i].match(fileChangeReg);
-		if(matches != undefined){
-			svnLog.files.push(matches[2]);
-			isFileStart = true;
-			continue;
-		}
-		
-		if(isFileStart && lines[i] == ''){
-			msseageStart = true;
-			isFileStart = false;
-			continue;
-		}
-		
-		if(msseageStart && i < lines.length - 2){
-			messages.push(lines[i]);
-		}
+		messages.push(lines[i]);
 	}
 	
 	svnLog.message = messages.join('\r\n');
