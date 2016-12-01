@@ -355,7 +355,7 @@ function postCommit(commitFile){
                 var task = {id: match[2], consumed: match[3], left: match[4]};
                 
                 logger("--开始更新task#"+ task.id + ", 任务数=" + taskTotal);
-                if(!match[1]){
+                if(match[1] != undefined){
 					taskTotal++;
 					zentaoAPI.updateTask(task, function(body, status){
 						taskTotal--;
@@ -378,7 +378,7 @@ function postCommit(commitFile){
                 var bugId = match[2];
                 
                 logger("--开始更新bug#"+ bugId + ", 任务数=" + taskTotal);
-				if(!match[1]){
+				if(match[1] != undefined){
 					taskTotal++;
 					zentaoAPI.updateBug(bugId, function(body, status){
 						logger("--bug#"+ bugId + "更新成功,status=" + status);
@@ -432,7 +432,6 @@ function parseCommitLog(){
 }
 
 function parseGitLog(lines){
-	console.log(lines);
 	var revisionReg = /^commit\s+(.+)$/;
 	var svnLog = {files:[]};
 	var fileChangeReg = /^([A-Z])\s+(.+)$/;
