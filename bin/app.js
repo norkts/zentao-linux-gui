@@ -355,15 +355,17 @@ function postCommit(commitFile){
             for(var i = 0; i < matches.length; i++){
                 var match = matches[i].match(taskReg);
                 var task = {id: match[2], consumed: match[3], left: match[4]};
-                taskTotal++;
                 
                 logger("--开始更新task#"+ task.id + ", 任务数=" + taskTotal);
                 if(!match[1]){
+					taskTotal++;
 					zentaoAPI.updateTask(task, function(body, status){
 						taskTotal--;
 						logger("--task#"+ task.id + "更新成功: status=" + status);
 						checkFinished(taskTotal);
 					});	
+				}else{
+					logger("--task#"+ task.id + "未做任何操作，不提交SVN, 任务数=" + taskTotal);
 				}
                 
             }
@@ -376,15 +378,17 @@ function postCommit(commitFile){
             for(var i = 0; i < matches.length; i++){
                 var match = matches[i].match(bugReg);
                 var bugId = match[2];
-                taskTotal++;
                 
                 logger("--开始更新bug#"+ bugId + ", 任务数=" + taskTotal);
 				if(!match[1]){
+					taskTotal++;
 					zentaoAPI.updateBug(bugId, function(body, status){
 						logger("--bug#"+ bugId + "更新成功,status=" + status);
 						taskTotal--;
 						checkFinished(taskTotal);
 					});	
+				}else{
+					logger("--bug#"+ bugId + "未做任何操作，不提交SVN, 任务数=" + taskTotal);
 				}
                 
             }
