@@ -264,20 +264,26 @@ function bindWorkRepository() {
 		});
 	}).then(function () {
 		zentaoAPI.getRepos(function (repos) {
-			
 			logger("bindWorkRepository getRepos res:" + JSON.stringify(repos));
 			
-			for (var i = 0; i < repos.length; i++) {
-				process.stdout.write(i + " : " + repos[i] + "\r\n");
+			var repository = undefined;
+			if(repos.length > 0){
+				for (var i = 0; i < repos.length; i++) {
+					process.stdout.write(i + " : " + repos[i] + "\r\n");
+				}
+				
+				process.stdout.write(getText("EnterRepository") + "(0-" + (repos.length - 1) + "):");
+				
+				var chunk = stdinRead();
+				logger(chunk);
+				var num = parseInt(chunk);
+				
+				repository = repos[num];
 			}
 			
-			process.stdout.write(getText("EnterRepository") + "(0-" + (repos.length - 1) + "):");
+
 			
-			var chunk = stdinRead();
-			logger(chunk);
-			var num = parseInt(chunk);
-			
-			saveWorkConfig(selectedWebsiteName, repos[num]);
+			saveWorkConfig(selectedWebsiteName, repository);
 			
 			view();
 			
@@ -319,7 +325,11 @@ function saveWorkConfig(websiteName, repository) {
 	var website = websiteMap[websiteName];
 	var configArr = [];
 	configArr.push('[' + currentPath + ']');
-	configArr.push('repository=' + repository);
+	
+	if(repository != undefined){
+		configArr.push('repository=' + repository);		
+	}
+
 	configArr.push('name=' + websiteName);
 	configArr.push('url=' + website.url);
 	configArr.push('account=' + website.account);
