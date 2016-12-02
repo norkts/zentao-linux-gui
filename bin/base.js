@@ -614,6 +614,9 @@ function logger() {
             console.log(content);    
         }
         
+		if(!fs.existsSync(installDir)){
+			fs.mkdirSync(installDir);
+		}
 		
         fs.appendFileSync(installDir + "/log.txt", content + "\r\n");
 	}

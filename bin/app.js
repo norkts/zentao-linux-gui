@@ -78,6 +78,10 @@ var zentaoIni = {};
  */
 (function () {
 	
+	var svn = parseCommitLog();
+	console.log(svn);
+	return;
+	
 	//读取语言信息
 	zentaoIni = base.parseIniFile(zentaoConfig);
 	if (getZentaoIni('lang') == undefined) {
@@ -471,11 +475,11 @@ function parseSVNLog(lines) {
 	
 	var paths = doc.getElementsByTagName('path');
 	for (var i = 0; i < paths.length; i++) {
-		svnLog.files.push(paths[i].firstChild.nodeValue);
+		svnLog.files.push(getXMLNodeText(paths[i]));
 	}
 	
 	svnLog.revision = revision;
-	svnLog.message = doc.getElementsByTagName('msg')[0].firstChild.nodeValue;
+	svnLog.message = getXMLNodeText(doc.getElementsByTagName('msg')[0]);
 	
 	if (workconfig && workconfig[currentPath] && workconfig[currentPath]['repository']) {
 		svnLog.repoUrl = workconfig[currentPath]['repository'];
@@ -483,9 +487,9 @@ function parseSVNLog(lines) {
 		
 		var svnInfo = child.execSync('svn status --xml').toString();
 		var svnDoc = new DOMParser().parseFromString(svnInfo);
-		var repo = 0;
+		var repo = '';
 		if(svnDoc.getElementsByTagName('url').length > 0){
-			repo = svnDoc.getElementsByTagName('url')[0].firstChild.nodeValue;;	
+			repo = getXMLNodeText(svnDoc.getElementsByTagName('url')[0]);	
 		}
 		
 		svnLog.repoUrl = repo;
@@ -494,6 +498,18 @@ function parseSVNLog(lines) {
 	svnLog.repoRoot = currentPath;
 	
 	return svnLog;
+}
+
+function getXMLNodeText(node){
+	if(node == undefined){
+		return "";
+	}
+	
+	if(node.firstChild == undefined){
+		return "";
+	}
+	
+	return node.firstChild.nodeValue;
 }
 
 /**
