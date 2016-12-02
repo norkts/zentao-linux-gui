@@ -421,7 +421,16 @@ var ARROW_DOWN_TEXT = '↓';
             var result = JSON.parse(body);
             if(result.status == "success"){
                 var tasks = JSON.parse(result.data).tasks;
-                callback(tasks);
+				
+				var activeTasks = [];
+				
+				for(var i = 0; i < tasks.length; i++){
+					if(tasks[i].status != 'done'){
+						activeTasks.push(tasks[i]);
+					}
+				}
+				
+                callback(activeTasks);
             }
         });
     }
@@ -441,7 +450,15 @@ var ARROW_DOWN_TEXT = '↓';
             var result = JSON.parse(body);
             if(result.status == "success"){
                 var bugs = JSON.parse(result.data).bugs;
-                callback(bugs);
+				var activeBugs = [];
+				
+				for(var i = 0; i < bugs.length; i++){
+					if(bugs[i].status == 'active'){
+						activeBugs.push(bugs[i]);
+					}
+				}
+				
+                callback(activeBugs);
             }
         });
     }
