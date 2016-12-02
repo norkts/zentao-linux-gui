@@ -76,12 +76,7 @@ var zentaoIni = {};
 /**
  * 主流程函数
  */
-(function () {
-	
-	var svn = parseCommitLog();
-	console.log(svn);
-	return;
-	
+(function () {	
 	//读取语言信息
 	zentaoIni = base.parseIniFile(zentaoConfig);
 	if (getZentaoIni('lang') == undefined) {
