@@ -8,7 +8,7 @@ logInfoFile=~/.zentao/tmp/.commit.log
 logCommond=""
 function svn(){
 	exepath=$svnpath;
-	logCommond="log -r COMMITTED -v --xml"
+	logCommond="log -r HEAD -v --xml"
 	
 	case $1 in 
 		commit)
