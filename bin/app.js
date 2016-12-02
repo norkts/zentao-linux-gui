@@ -76,7 +76,7 @@ var zentaoIni = {};
 /**
  * 主流程函数
  */
-(function () {	
+(function () {
 	//读取语言信息
 	zentaoIni = base.parseIniFile(zentaoConfig);
 	if (getZentaoIni('lang') == undefined) {
@@ -480,7 +480,7 @@ function parseSVNLog(lines) {
 		svnLog.repoUrl = workconfig[currentPath]['repository'];
 	} else {
 		
-		var svnInfo = child.execSync('svn status --xml').toString();
+		var svnInfo = child.execSync('svn info --xml ' + currentPath).toString();
 		var svnDoc = new DOMParser().parseFromString(svnInfo);
 		var repo = '';
 		if(svnDoc.getElementsByTagName('url').length > 0){
