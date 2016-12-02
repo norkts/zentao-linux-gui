@@ -390,7 +390,7 @@ function postCommit(commitFile) {
 						checkFinished(taskTotal);
 					});
 				} else {
-					logger("--bug#" + bugId + "未做任何操作，不提交SVN, 任务数=" + taskTotal);
+					logger("--bug#" + bugId + "未做任何操作，不提交禅道, 任务数=" + taskTotal);
 				}
 				
 			}
@@ -452,7 +452,9 @@ function parseGitLog(lines) {
 	
 	var files = lines.slice(1);
 	for (var i = 0; i < files.length; i++) {
-		svnLog.files.push(files[i].split(/\s+/)[1]);
+		if(files[i].length > 0){
+			svnLog.files.push(files[i].split(/\s+/)[1]);	
+		}
 	}
 	
 	logger("--parseGitLog--" + JSON.stringify(svnLog));

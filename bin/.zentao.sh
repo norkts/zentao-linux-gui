@@ -8,7 +8,7 @@ logInfoFile=~/.zentao/tmp/.commit.log
 logCommond=""
 function svn(){
 	exepath=$svnpath;
-	logCommond="log -r COMMITTED -v"
+	logCommond="log -r COMMITTED -v --xml"
 	
 	case $1 in 
 		commit)
@@ -41,13 +41,20 @@ function git(){
 }
 
 function runZentao(){
+	
+	#执行禅道TUI操作命令
 	$zentaopath $@;
 	
+	#当zentao执行成功并生成了提交文件才执行提交命令
 	if [ -f $commitFile ]; then
 		$exepath $@ -F $commitFile;
-		echo $exepath>$logInfoFile
-		$exepath $logCommond>>$logInfoFile
-		$zentaopath $@;
+		
+		#commit命令成功时执行
+		if [ $? -eq 0 ]; then
+			echo "$exepath">$logInfoFile
+			$exepath $logCommond>>$logInfoFile
+			$zentaopath $@;
+		fi
 	else
 		$exepath $@
 	fi
