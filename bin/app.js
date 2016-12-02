@@ -864,7 +864,7 @@ function generateMessage(arr, type) {
 			
 			var consumed = arr[i][4] == 0 ? arr[i][3] : arr[i][3] - taskConsumedTimeMap[arr[i][1]];
 			
-			str += type + "#" + arr[i][1] + " " + arr[i][2] + ',cost:' + arr[i][3] + ' left:' + arr[i][4];
+			str += type + "#" + arr[i][1] + " " + arr[i][2] + ',cost:' + consumed + ' left:' + arr[i][4];
 		}
 		
 		msg.push(str);
