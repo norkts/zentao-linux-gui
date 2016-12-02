@@ -10,13 +10,13 @@ var blessed = require("blessed");
 var fs = require("fs");
 var os = require("os");
 var child = require('child_process');
-
-
+var DOMParser = require('xmldom').DOMParser;
+	
 var ListTable = base.ListTable;
 var executor = base.executor;
 var GBK2UTF8 = base.GBK2UTF8;
 var Lang = base.Lang;
-var getText = function(text){
+var getText = function (text) {
 	return Lang.getText(text);
 }
 
@@ -25,29 +25,32 @@ var workConfigPath = '~/.zentao/.zentao.work';
 var zentaoConfig = '~/.zentao/conf/conf.ini';
 
 var zentaosh = '~/.zentao/.zentao.sh';
-var commitFile = '~/.zentao/tmp/.zentao.commit';//TODO 多用户处理
+var commitFile = '~/.zentao/tmp/.zentao.commit'; //TODO 多用户处理
 
 var commitLogFile = '~/.zentao/tmp/.commit.log';
 
 var currentPath = process.cwd();
 
+
+var taskConsumedTimeMap = {};
+
 process.stdin.resume();
 
 if (os.type() == 'Windows_NT') {
 	globalIniPath = '.zentao';
-    workConfigPath = '.zentao.work';
-    zentaoConfig = 'conf.ini';
-    
-    commitFile = '.zentao.commit';
-    zentaosh = '.zentao.sh';
-	commitLogFile='.commit.log';
-}else{
-    globalIniPath = process.env.HOME + "/.zentao/conf/.zentao";
-    workConfigPath = process.env.HOME + '/.zentao/conf/.zentao.work';
-    zentaoConfig = process.env.HOME + '/.zentao/conf/conf.ini';
-    
-    zentaosh = process.env.HOME + '/.zentao/bin/.zentao.sh';
-    commitFile = process.env.HOME + '/.zentao/tmp/.zentao.commit';
+	workConfigPath = '.zentao.work';
+	zentaoConfig = 'conf.ini';
+	
+	commitFile = '.zentao.commit';
+	zentaosh = '.zentao.sh';
+	commitLogFile = '.commit.log';
+} else {
+	globalIniPath = process.env.HOME + "/.zentao/conf/.zentao";
+	workConfigPath = process.env.HOME + '/.zentao/conf/.zentao.work';
+	zentaoConfig = process.env.HOME + '/.zentao/conf/conf.ini';
+	
+	zentaosh = process.env.HOME + '/.zentao/bin/.zentao.sh';
+	commitFile = process.env.HOME + '/.zentao/tmp/.zentao.commit';
 	commitLogFile = process.env.HOME + '/.zentao/tmp/.commit.log';
 }
 
@@ -66,139 +69,146 @@ var screen = undefined;
 var workconfig = undefined;
 
 process.on('uncaughtException', function (error) {
-	logger(error.name  + ":" + error.message + "\r\n" + error.stack);
-    console.error(error.stack);
+	logger(error.name + ":" + error.message + "\r\n" + error.stack);
+	console.error(error.stack);
 });
 var zentaoIni = {};
 /**
  * 主流程函数
  */
-(function(){	
+(function () {
+	
+	var svnLog = parseCommitLog();
+	console.log(svnLog);
+	return;
+	
 	//读取语言信息
-    zentaoIni =  base.parseIniFile(zentaoConfig);
-    if(getZentaoIni('lang') == undefined){
-        var langs = Lang.getLangs();
-        
-        for(var i = 0; i < langs.length; i++){
-            process.stdout.write(i+ ': ' + langs[i] + "\r\n");
-        }
-        
-        var langIndex = 0;
-        
-        do{
-            process.stdout.write(getText('Please Select Your Language: '));
-            langIndex = stdinRead();
-        }while(typeof langs[parseInt(langIndex)] != "string");
-        
-        Lang.chooseLang(langs[parseInt(langIndex)]);
-        
-        saveZentaoIni('lang', Lang.langName);
-    }else{
+	zentaoIni = base.parseIniFile(zentaoConfig);
+	if (getZentaoIni('lang') == undefined) {
+		var langs = Lang.getLangs();
+		
+		for (var i = 0; i < langs.length; i++) {
+			process.stdout.write(i + ': ' + langs[i] + "\r\n");
+		}
+		
+		var langIndex = 0;
+		
+		do {
+			process.stdout.write(getText('Please Select Your Language: '));
+			langIndex = stdinRead();
+		} while (typeof langs[parseInt(langIndex)] != "string");
+		
+		Lang.chooseLang(langs[parseInt(langIndex)]);
+		
+		saveZentaoIni('lang', Lang.langName);
+	} else {
 		Lang.chooseLang(getZentaoIni('lang'));
 	}
 	
-    if(isFileEmpty(workConfigPath)){
-        //绑定目录-站点-repository
-        bindWorkRepository();
-    }else{
+	if (isFileEmpty(workConfigPath)) {
+		//绑定目录-站点-repository
+		bindWorkRepository();
+	} else {
 		websiteMap = base.parseIniFile(globalIniPath);
-        view();
-    }
-
-
+		view();
+	}
+	
 })();
 
-function saveZentaoIni(key, val){
-    if(!zentaoIni){
-        zentaoIni = {};
-    }
-
-    if(zentaoIni['zentao'] == undefined){
-        zentaoIni['zentao'] = {};
-    }
-    
-    zentaoIni["zentao"][key] = val;
-    
-    base.saveIniFile(zentaoConfig, zentaoIni);
+function saveZentaoIni(key, val) {
+	if (!zentaoIni) {
+		zentaoIni = {};
+	}
+	
+	if (zentaoIni['zentao'] == undefined) {
+		zentaoIni['zentao'] = {};
+	}
+	
+	zentaoIni["zentao"][key] = val;
+	
+	base.saveIniFile(zentaoConfig, zentaoIni);
 }
 
-function getZentaoIni(key){    
-    if(!zentaoIni){
-        zentaoIni = {};
-    }
-
-    if(zentaoIni['zentao'] == undefined){
-        zentaoIni['zentao'] = {};
-    }
-    
-    return zentaoIni['zentao'][key];
+function getZentaoIni(key) {
+	if (!zentaoIni) {
+		zentaoIni = {};
+	}
+	
+	if (zentaoIni['zentao'] == undefined) {
+		zentaoIni['zentao'] = {};
+	}
+	
+	return zentaoIni['zentao'][key];
 }
 
-function isFileEmpty(file){
-    if(!fs.existsSync(file)){
-        return true;
-    }
-    
-    var state = fs.statSync(file);
-    
-    if(state.isDirectory()){
-        return true;
-    }
-    
-    if(state.size == 0){
-        return true;
-    }
-
-    return false;
+function isFileEmpty(file) {
+	if (!fs.existsSync(file)) {
+		return true;
+	}
+	
+	var state = fs.statSync(file);
+	
+	if (state.isDirectory()) {
+		return true;
+	}
+	
+	if (state.size == 0) {
+		return true;
+	}
+	
+	return false;
 }
 
 /**
  * 安装程序
  */
-function addWebsite(){
-    
-    if(os.type().toLowerCase() != 'linux'){
-        process.stdout.write(getText('UnsuportedOS') + '\r\n');
-        return;
-    }
-    
-    process.stdout.write(getText('StartInstallZentao') + '\r\n');
-    
-    var contents = fs.readFileSync(process.env.HOME + '/.bashrc', 'utf8');
-    
-    process.stdout.write(getText('IsAddWebsite') + ": ");
-    var chunk = stdinRead();
-    websiteMap = {};
-
-    var urlRegexp = /^https?:\/\/(.*)\/.*$/;
-    if(chunk == 'y'){
-        while(true){
-            process.stdout.write(getText("EnterWebsiteName") + ": ");
-            var websiteName = stdinRead();
-            
-            var url = "";
-            do{
+function addWebsite() {
+	
+	if (os.type().toLowerCase() != 'linux') {
+		process.stdout.write(getText('UnsuportedOS') + '\r\n');
+		return;
+	}
+	
+	process.stdout.write(getText('StartInstallZentao') + '\r\n');
+	
+	var contents = fs.readFileSync(process.env.HOME + '/.bashrc', 'utf8');
+	
+	process.stdout.write(getText('IsAddWebsite') + ": ");
+	var chunk = stdinRead();
+	websiteMap = {};
+	
+	var urlRegexp = /^https?:\/\/(.*)\/.*$/;
+	if (chunk == 'y') {
+		while (true) {
+			process.stdout.write(getText("EnterWebsiteName") + ": ");
+			var websiteName = stdinRead();
+			
+			var url = "";
+			do {
 				process.stdout.write(getText('EnterWebsiteURI') + ": ");
-                url = stdinRead();
-            }while(!urlRegexp.test(url))
-            
-            process.stdout.write(getText("EnterUserName") + ": ");
-            var account = stdinRead();
-            
-            
-            process.stdout.write(getText("EnterPassword") + ": ");
-            var password = stdinRead();
-            
-            websiteMap[websiteName] = {url : url, account: account, password: password};
-            
-            process.stdout.write(getText('IsContinueAddWebsite') + ": ");
-            chunk = stdinRead();
-            if(chunk == 'n'){
-                base.saveIniFile(globalIniPath, websiteMap);
-                break;
-            }
-        }
-    }
+				url = stdinRead();
+			} while (!urlRegexp.test(url))
+			
+			process.stdout.write(getText("EnterUserName") + ": ");
+			var account = stdinRead();
+			
+			process.stdout.write(getText("EnterPassword") + ": ");
+			var password = stdinRead();
+			
+			websiteMap[websiteName] = {
+				url : url,
+				account : account,
+				password : password
+			};
+			
+			process.stdout.write(getText('IsContinueAddWebsite') + ": ");
+			chunk = stdinRead();
+			if (chunk == 'n') {
+				base.saveIniFile(globalIniPath, websiteMap);
+				break;
+			}
+		}
+	}
 	
 	websiteMap = base.parseIniFile(globalIniPath);
 }
@@ -206,275 +216,284 @@ function addWebsite(){
 /**
  * 显示图形界面
  */
-function view(){
-    workconfig = base.parseIniFile(workConfigPath);
-    if(workconfig[currentPath] == undefined 
-        || workconfig[currentPath].name == undefined 
-        || websiteMap[workconfig[currentPath].name] == undefined){
-            
-        bindWorkRepository();
-    }else{
-        if(isFileEmpty(commitFile)){
-            //无参数，则显示TUI
-            
-            initTUI();
-            initZentaoTui(workconfig[currentPath]);
-        }else{
-            postCommit(commitFile);
-        }            
-    }
+function view() {
+	workconfig = base.parseIniFile(workConfigPath);
+	if (workconfig[currentPath] == undefined
+		 || workconfig[currentPath].name == undefined
+		 || websiteMap[workconfig[currentPath].name] == undefined) {
+		
+		bindWorkRepository();
+	} else {
+		if (isFileEmpty(commitFile)) {
+			//无参数，则显示TUI
+			
+			initTUI();
+			initZentaoTui(workconfig[currentPath]);
+		} else {
+			postCommit(commitFile);
+		}
+	}
 }
 
 /**
  * 绑定站点和仓库
  */
-function bindWorkRepository(){                                                                                                          
-    process.stdin.resume();
-    
+function bindWorkRepository() {
+	process.stdin.resume();
+	
 	addWebsite();
 	
-    logger("bindWorkRepository start");
-
+	logger("bindWorkRepository start");
 	
-    var selectedWebsiteName = undefined;
-    
-    executor(function(resolve){
-        initTUI();
-        initSiteTable(function(website, websiteName){
-            resolve(websiteName);
-        });
-    }).then(function(websiteName){
-            logger("bindWorkRepository site selected, siteName: " + websiteName);
-            destroyTUI();
-            
-            selectedWebsiteName = websiteName;
-            var website = websiteMap[websiteName];
-            return executor(function(resolve){
-                    initZentaoAPI(website, function(isSucess, msg){
-                        if(isSucess){
-                            resolve();
-                        }else{
-                            logger("登录禅道站点失败: " + zentaoAPI.url + ", 错误信息:" + msg);
-                        }
-                    });            
-            });
-    }).then(function(){
-            zentaoAPI.getRepos(function(repos){
-    
-                logger("bindWorkRepository getRepos res:" + JSON.stringify(repos));
-
-                for(var i = 0; i < repos.length; i++){
-                    process.stdout.write(i + " : " + repos[i] + "\r\n");
-                }
-                
-                process.stdout.write(getText("EnterRepository") + "(0-" + (repos.length - 1) + "):");
-                
-                var chunk = stdinRead();
-                logger(chunk);
-                var num = parseInt(chunk);
-                
-                saveWorkConfig(selectedWebsiteName, repos[num]);
-                
-                view();
-                
-
-            });   
-    })
+	var selectedWebsiteName = undefined;
+	
+	executor(function (resolve) {
+		initTUI();
+		initSiteTable(function (website, websiteName) {
+			resolve(websiteName);
+		});
+	}).then(function (websiteName) {
+		logger("bindWorkRepository site selected, siteName: " + websiteName);
+		destroyTUI();
+		
+		selectedWebsiteName = websiteName;
+		var website = websiteMap[websiteName];
+		return executor(function (resolve) {
+			initZentaoAPI(website, function (isSucess, msg) {
+				if (isSucess) {
+					resolve();
+				} else {
+					logger("登录禅道站点失败: " + zentaoAPI.url + ", 错误信息:" + msg);
+				}
+			});
+		});
+	}).then(function () {
+		zentaoAPI.getRepos(function (repos) {
+			
+			logger("bindWorkRepository getRepos res:" + JSON.stringify(repos));
+			
+			for (var i = 0; i < repos.length; i++) {
+				process.stdout.write(i + " : " + repos[i] + "\r\n");
+			}
+			
+			process.stdout.write(getText("EnterRepository") + "(0-" + (repos.length - 1) + "):");
+			
+			var chunk = stdinRead();
+			logger(chunk);
+			var num = parseInt(chunk);
+			
+			saveWorkConfig(selectedWebsiteName, repos[num]);
+			
+			view();
+			
+		});
+	})
 }
 
 /**
  * 读取终端输入
  */
-function stdinRead(){
-    process.stdin.resume();
-    
-    var fd = process.stdin.fd;
-    if(os.type() == 'Linux'){
-        fd = fs.openSync('/dev/stdin', 'rs');
-    }
-        
-    var buf = new Buffer(1000);
-    buf.fill(0);
-    var size = fs.readSync(fd, buf, 0, 1000);
-    
-    buf = buf.slice(0, size);
-
-    if(os.type() == 'Linux'){
-        return buf.toString().trim();
-    }else{
-        return GBK2UTF8(buf).trim();
-    }
+function stdinRead() {
+	process.stdin.resume();
+	
+	var fd = process.stdin.fd;
+	if (os.type() == 'Linux') {
+		fd = fs.openSync('/dev/stdin', 'rs');
+	}
+	
+	var buf = new Buffer(1000);
+	buf.fill(0);
+	var size = fs.readSync(fd, buf, 0, 1000);
+	
+	buf = buf.slice(0, size);
+	
+	if (os.type() == 'Linux') {
+		return buf.toString().trim();
+	} else {
+		return GBK2UTF8(buf).trim();
+	}
 }
 
 /**
  * 保存匹配的站点信息
  */
-function saveWorkConfig(websiteName, repository){
-    
-    logger("saveWorkConfig select website:" + websiteName + ", repository:" + repository);
-    
-    var website = websiteMap[websiteName];
-    var configArr = [];
-    configArr.push('[' + currentPath + ']');
-    configArr.push('repository=' + repository);
-    configArr.push('name=' + websiteName);
-    configArr.push('url=' + website.url);
-    configArr.push('account=' + website.account);
-    configArr.push('password=' + website.password);
-    
-    fs.writeFileSync(workConfigPath, configArr.join('\r\n'));	
+function saveWorkConfig(websiteName, repository) {
+	
+	logger("saveWorkConfig select website:" + websiteName + ", repository:" + repository);
+	
+	var website = websiteMap[websiteName];
+	var configArr = [];
+	configArr.push('[' + currentPath + ']');
+	configArr.push('repository=' + repository);
+	configArr.push('name=' + websiteName);
+	configArr.push('url=' + website.url);
+	configArr.push('account=' + website.account);
+	configArr.push('password=' + website.password);
+	
+	fs.writeFileSync(workConfigPath, configArr.join('\r\n'));
 	
 }
 
 /**
  * 提交消息之后
  */
-function postCommit(commitFile){
+function postCommit(commitFile) {
 	
 	base.logToConsole = true;
-    logger("--开始提交commit信息到禅道--");
-    
-    workconfig = base.parseIniFile(workConfigPath);
-    initZentaoAPI(workconfig[currentPath], function(isSuccess, msg){
-        logger("--接口登录成功:result=" + isSuccess + ", msg=" + msg);
-        
-        var contents = fs.readFileSync(commitFile, 'UTF-8');
-        
-        var taskRegAll = /(Finish\s+)?[Tt]ask#(\d+).*?,\s*[Cc]ost:(\d+)\s*left:(\d+)/g;
-        var taskReg = /(Finish\s+)?[Tt]ask#(\d+).*?,\s*[Cc]ost:(\d+)\s*left:(\d+)/;
-        var bugRegAll = /(Fix\s+)?[Bb]ug#(\d+)/g;
-        var bugReg = /(Fix\s+)?[Bb]ug#(\d+)/;
-        
-        var matches = contents.match(taskRegAll);
-
-        var taskTotal = 0;
-        if(matches != undefined){
+	logger("--开始提交commit信息到禅道--");
+	
+	workconfig = base.parseIniFile(workConfigPath);
+	initZentaoAPI(workconfig[currentPath], function (isSuccess, msg) {
+		logger("--接口登录成功:result=" + isSuccess + ", msg=" + msg);
+		
+		var contents = fs.readFileSync(commitFile, 'UTF-8');
+		
+		var taskRegAll = /(Finish\s+)?[Tt]ask#(\d+).*?,\s*[Cc]ost:(\d+)\s*left:(\d+)/g;
+		var taskReg = /(Finish\s+)?[Tt]ask#(\d+).*?,\s*[Cc]ost:(\d+)\s*left:(\d+)/;
+		var bugRegAll = /(Fix\s+)?[Bb]ug#(\d+)/g;
+		var bugReg = /(Fix\s+)?[Bb]ug#(\d+)/;
+		
+		var matches = contents.match(taskRegAll);
+		
+		var taskTotal = 0;
+		if (matches != undefined) {
 			//任务更新
-            for(var i = 0; i < matches.length; i++){
-                var match = matches[i].match(taskReg);
-                var task = {id: match[2], consumed: match[3], left: match[4]};
-                
-                logger("--开始更新task#"+ task.id + ", 任务数=" + taskTotal);
+			for (var i = 0; i < matches.length; i++) {
+				var match = matches[i].match(taskReg);
+				var task = {
+					id : match[2],
+					consumed : match[3],
+					left : match[4]
+				};
+				
+				logger("--开始更新task#" + task.id + ", 任务数=" + taskTotal);
 				taskTotal++;
-				zentaoAPI.updateTask(task, function(body, status){
+				zentaoAPI.updateTask(task, function (body, status) {
 					taskTotal--;
-					logger("--task#"+ task.id + "更新成功: status=" + status);
+					logger("--task#" + task.id + "更新成功: status=" + status);
 					checkFinished(taskTotal);
 				});
-                
-            }
-        }
-        
-        matches = contents.match(bugRegAll);
-        if(matches != undefined){
+				
+			}
+		}
+		
+		matches = contents.match(bugRegAll);
+		if (matches != undefined) {
 			
 			//BUG更新
-            for(var i = 0; i < matches.length; i++){
-                var match = matches[i].match(bugReg);
-                var bugId = match[2];
-                
-                logger("--开始更新bug#"+ bugId + ", 任务数=" + taskTotal);
-				if(match[1] != undefined){
+			for (var i = 0; i < matches.length; i++) {
+				var match = matches[i].match(bugReg);
+				var bugId = match[2];
+				
+				logger("--开始更新bug#" + bugId + ", 任务数=" + taskTotal);
+				if (match[1] != undefined) {
 					taskTotal++;
-					zentaoAPI.updateBug(bugId, function(body, status){
-						logger("--bug#"+ bugId + "更新成功,status=" + status);
+					zentaoAPI.updateBug(bugId, function (body, status) {
+						logger("--bug#" + bugId + "更新成功,status=" + status);
 						taskTotal--;
 						checkFinished(taskTotal);
-					});	
-				}else{
-					logger("--bug#"+ bugId + "未做任何操作，不提交SVN, 任务数=" + taskTotal);
+					});
+				} else {
+					logger("--bug#" + bugId + "未做任何操作，不提交SVN, 任务数=" + taskTotal);
 				}
-                
-            }
-        }
+				
+			}
+		}
 		
-        //reversion信息，commitMessage信息，repo信息处理
+		//reversion信息，commitMessage信息，repo信息处理
 		var svnLog = parseCommitLog();
 		postSVNLog(svnLog);
+		checkFinished(taskTotal);
 		
-        checkFinished(taskTotal);
-		
-		
-		function postSVNLog(svnLog){
+		function postSVNLog(svnLog) {
 			taskTotal++;
-			zentaoAPI.saveSVNLog(svnLog, function(){
+			zentaoAPI.saveSVNLog(svnLog, function () {
 				logger("--saveSVNLog--" + JSON.stringify(svnLog));
 				taskTotal--;
 				checkFinished(taskTotal);
 			});
 		}
-    });
-    
-    
-    
-    function checkFinished(total){
-        logger("--正在执行的任务数:"+ total + "--");
-        if(total < 1){
-            logger("--提交commit信息到禅道完成--");
-            
-            fs.unlinkSync(commitFile);
-            process.exit(0);
-        }
-    }
+		
+		function checkFinished(total) {
+			logger("--正在执行的任务数:" + total + "--");
+			if (total < 1) {
+				logger("--提交commit信息到禅道完成--");
+				
+				fs.unlinkSync(commitFile);
+				fs.unlinkSync(commitLogFile);
+				process.exit(0);
+			}
+		}
+	});
+	
 }
 
-function parseCommitLog(){
+function parseCommitLog() {
 	var contents = fs.readFileSync(commitLogFile, "utf8");
 	var lines = contents.split(/\r?\n/);
 	
 	var isGit = lines[0].indexOf('git') > -1;
 	
-	return isGit ? parseGitLog(lines.slice(1)) : parseSVNLog(lines.slice(1));
+	var svnLog = isGit ? parseGitLog(lines.slice(1)) : parseSVNLog(lines.slice(1));
+	
+	return svnLog;
 }
 
-function parseGitLog(lines){
-	var revisionReg = /^commit\s+(.+)$/;
-	var svnLog = {files:[]};
-	var fileChangeReg = /^([A-Z])\s+(.+)$/;
-	
-	var isFileStart = false;
+function parseGitLog(lines) {
+	var infos = lines[0].split(' ');
+	var svnLog = {
+		files : []
+	};
 
-	var messages = [];
-	for(var i = 0; i < lines.length; i++){
-		var matches = lines[i].match(revisionReg);
-		if(matches != undefined){
-			svnLog.revision = matches[1];
-			continue;
-		}
-		
-		messages.push(lines[i]);
+	svnLog.revision = infos[0];
+	svnLog.message = infos[1];
+	if (workconfig && workconfig[currentPath] && workconfig[currentPath]['repository']) {
+		svnLog.repoUrl = workconfig[currentPath]['repository'];
+	}else{
+		svnLog.repoUrl = "";
 	}
-	
-	svnLog.message = messages.join('\r\n');
-	svnLog.repoUrl = workconfig[currentPath]['repository'];
 	svnLog.repoRoot = currentPath;
+	
+	var files = lines.slice(1);
+	for (var i = 0; i < files.length; i++) {
+		svnLog.files.push(files[i].split(/\s+/)[1]);
+	}
 	
 	logger("--parseGitLog--" + JSON.stringify(svnLog));
 	
 	return svnLog;
 }
 
-function parseSVNLog(lines){
-	var revisionReg = /^r(\d+).*$/;
-	var fileChangeReg = /^\s+([A-Z])\s+(.+)$/;
-	var svnLog = {files:[]};
+function parseSVNLog(lines) {
+	var doc = new DOMParser().parseFromString(lines.join('\r\n'));
+	var revision = doc.getElementsByTagName('logentry')[0].getAttribute('revision');
+	var svnLog = {
+		files : []
+	};
 	
-	var messages = [];
-	for(var i = 0; i < lines.length; i++){
-		var matches = lines[i].match(revisionReg);
-		if(matches != undefined){
-			svnLog.revision = matches[1];
-			continue;
-		}
-		
-		messages.push(lines[i]);
+	var paths = doc.getElementsByTagName('path');
+	for (var i = 0; i < paths.length; i++) {
+		svnLog.files.push(paths[i].firstChild.nodeValue);
 	}
 	
-	svnLog.message = messages.join('\r\n');
-	svnLog.repoUrl = workconfig[currentPath]['repository'];
-	svnLog.repoRoot = currentPath;
+	svnLog.revision = revision;
+	svnLog.message = doc.getElementsByTagName('msg')[0].firstChild.nodeValue;
 	
-	logger("--parseSVNLog--" + JSON.stringify(svnLog));
+	if (workconfig && workconfig[currentPath] && workconfig[currentPath]['repository']) {
+		svnLog.repoUrl = workconfig[currentPath]['repository'];
+	} else {
+		
+		var svnInfo = child.execSync('svn status --xml').toString();
+		var svnDoc = new DOMParser().parseFromString(svnInfo);
+		var repo = 0;
+		if(svnDoc.getElementsByTagName('url').length > 0){
+			repo = svnDoc.getElementsByTagName('url')[0].firstChild.nodeValue;;	
+		}
+		
+		svnLog.repoUrl = repo;
+	}
+	
+	svnLog.repoRoot = currentPath;
 	
 	return svnLog;
 }
@@ -482,118 +501,115 @@ function parseSVNLog(lines){
 /**
  * 初始化字符界面
  */
-function initTUI(){
-    base.logToConsole = false;
-    screen = blessed.screen({
-        debug : true,
-        fullUnicode : true
-    });
-
-    /**
-     * 退出操作快捷键
-     */
-    screen.key('C-q', function () {
-        destroyTUI();
-        process.exit(0);
-    });
+function initTUI() {
+	base.logToConsole = false;
+	screen = blessed.screen({
+			debug : true,
+			fullUnicode : true
+		});
+	
+	/**
+	 * 退出操作快捷键
+	 */
+	screen.key('C-q', function () {
+		destroyTUI();
+		process.exit(0);
+	});
 }
 
-
-function destroyTUI(){
-    screen.destroy();
-    base.logToConsole = false;
+function destroyTUI() {
+	screen.destroy();
+	base.logToConsole = false;
 }
 /**
  * 初始化站点列表
  */
 function initSiteTable(onRowSelect) {
-
-    siteTable = new ListTable(screen)
-    siteTable.setTitle(getText('SiteTitle'));
-
-    //FIXME 当按上下箭头时此处显示异常
-    siteTable.setTip(getText('siteTableTip'));
-
-    siteTable.setHead([getText('SiteName'), getText('SiteUrl'), getText('UserName'), getText('Password')]);
-
-    var websites = [];
-    for (var name in websiteMap) {
-        websites.push([name, websiteMap[name].url, websiteMap[name].account, '******']);
-    }
-    
-    siteTable.setData(websites);
-
-    siteTable.render();
-    siteTable.focus();
-
-    screen.render();
-    
-    var msg = blessed.message({
-            parent : screen,
-            border : 'line',
-            height : 'shrink',
-            width : 'half',
-            top : 'center',
-            left : 'center',
-            label : ' {blue-fg}Message{/blue-fg} ',
-            tags : true,
-            keys : true,
-            hidden : true,
-            vi : true
-        });
-
-
-
-    siteTable._table.on("select", function (arg) {
-        var selectedIndex = siteTable.selected();
-        
-        var row = siteTable._data[selectedIndex];
-        
-        siteTable._table.hide();
-        var website = websiteMap[row[0]];
-        
-        logger("website.select: " + JSON.stringify(website) + "," + row[0]);
-        
-        if(onRowSelect instanceof Function){
-            onRowSelect(website, row[0]);
-        }else{
-            initZentaoTui(website, row[0]);            
-        }
-    });
+	
+	siteTable = new ListTable(screen)
+		siteTable.setTitle(getText('SiteTitle'));
+	
+	//FIXME 当按上下箭头时此处显示异常
+	siteTable.setTip(getText('siteTableTip'));
+	
+	siteTable.setHead([getText('SiteName'), getText('SiteUrl'), getText('UserName'), getText('Password')]);
+	
+	var websites = [];
+	for (var name in websiteMap) {
+		websites.push([name, websiteMap[name].url, websiteMap[name].account, '******']);
+	}
+	
+	siteTable.setData(websites);
+	
+	siteTable.render();
+	siteTable.focus();
+	
+	screen.render();
+	
+	var msg = blessed.message({
+			parent : screen,
+			border : 'line',
+			height : 'shrink',
+			width : 'half',
+			top : 'center',
+			left : 'center',
+			label : ' {blue-fg}Message{/blue-fg} ',
+			tags : true,
+			keys : true,
+			hidden : true,
+			vi : true
+		});
+	
+	siteTable._table.on("select", function (arg) {
+		var selectedIndex = siteTable.selected();
+		
+		var row = siteTable._data[selectedIndex];
+		
+		siteTable._table.hide();
+		var website = websiteMap[row[0]];
+		
+		logger("website.select: " + JSON.stringify(website) + "," + row[0]);
+		
+		if (onRowSelect instanceof Function) {
+			onRowSelect(website, row[0]);
+		} else {
+			initZentaoTui(website, row[0]);
+		}
+	});
 }
 
 /**
  * 初始化禅道操作信息
  */
-function initZentaoTui(website){
-    
-    logger("initZentaoTui-start:" + JSON.stringify(website));
-    initZentaoAPI(website, function (isSucess, message) {
-        logger("initZentaoTui-login-done: status= " + isSucess + ",msg" + message);
-        if (isSucess) {
-            bugTable = initBugTable();
-        } else {
-            msg.display(getText('LoginFailed') + ":" + message, 3000, function(){
-                destroyTUI();
-            });
-        }
-        
-    });
+function initZentaoTui(website) {
+	
+	logger("initZentaoTui-start:" + JSON.stringify(website));
+	initZentaoAPI(website, function (isSucess, message) {
+		logger("initZentaoTui-login-done: status= " + isSucess + ",msg" + message);
+		if (isSucess) {
+			bugTable = initBugTable();
+		} else {
+			msg.display(getText('LoginFailed') + ":" + message, 3000, function () {
+				destroyTUI();
+			});
+		}
+		
+	});
 }
 
 /**
  * 初始化并登录禅道
  */
-function initZentaoAPI(website, callback){
-    zentaoAPI = new base.ZentaoAPI(website.url, website.account, website.password);
-    
-    zentaoAPI.isGet().then(function(requestType){
-            logger("initZentaoAPI requestType res, requestType:" + requestType);
-            zentaoAPI.login(function (isSucess, msg) {
-                logger("initZentaoAPI login res, isSucess:" + isSucess + ", msg:" + msg);
-                callback(isSucess, msg);
-        });
-    });
+function initZentaoAPI(website, callback) {
+	zentaoAPI = new base.ZentaoAPI(website.url, website.account, website.password);
+	
+	zentaoAPI.isGet().then(function (requestType) {
+		logger("initZentaoAPI requestType res, requestType:" + requestType);
+		zentaoAPI.login(function (isSucess, msg) {
+			logger("initZentaoAPI login res, isSucess:" + isSucess + ", msg:" + msg);
+			callback(isSucess, msg);
+		});
+	});
 }
 
 /**
@@ -603,10 +619,10 @@ function initBugTable() {
 	
 	var selectedIndex = 0;
 	var tabBugSelected = true;
-    
+	
 	var bugTH = [getText('Select'), getText('BugID'), getText('BugTitle'), getText('BugResolved')];
-    var taskTH = [getText('Select'), getText('TaskID'), getText('TaskName'), getText('ConsumedTime'), getText('RemainTime'), getText('TaskFinished')];
-    
+	var taskTH = [getText('Select'), getText('TaskID'), getText('TaskName'), getText('ConsumedTime'), getText('RemainTime'), getText('TaskFinished')];
+	
 	bugTable = new ListTable(screen);
 	bugTable.setTitle(getText('BugTableTitle'));
 	
@@ -678,6 +694,7 @@ function initBugTable() {
 			zentaoAPI.getTaskList(function (tasks) {
 				var rows = [];
 				for (var i = 0; i < tasks.length; i++) {
+					taskConsumedTimeMap[tasks[i].id] = tasks[i].consumed;
 					rows.push([getText('UnCheckedIcon'), tasks[i].id, tasks[i].name, tasks[i].consumed, tasks[i].left, '']);
 				}
 				
@@ -836,6 +853,8 @@ function generateMessage(arr, type) {
 				str = "Finish ";
 			}
 			
+			var consumed = arr[i][4] == 0 ? arr[i][3] : arr[i][3] - taskConsumedTimeMap[arr[i][1]];
+			
 			str += type + "#" + arr[i][1] + " " + arr[i][2] + ',cost:' + arr[i][3] + ' left:' + arr[i][4];
 		}
 		
@@ -937,7 +956,7 @@ function workTimeDialog(selectedIndex, isFinished) {
 	consumedTextInput.setValue(rowData[3]);
 	
 	var leftLabel = blessed.text({
-			content : getText('RemainTime') ,
+			content : getText('RemainTime'),
 			left : 2,
 			top : 7,
 			style : {
@@ -964,7 +983,7 @@ function workTimeDialog(selectedIndex, isFinished) {
 		});
 	
 	leftTextInput.setValue(isFinished ? '0' : rowData[4]);
-		
+	
 	var okBtn = blessed.button({
 			content : getText('OK'),
 			top : 11,

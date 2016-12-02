@@ -25,7 +25,7 @@ function svn(){
 
 function git(){
 	exepath=$gitpath;
-	logCommond="log -1 --name-status"
+	logCommond="log -1 --name-status --pretty=oneline"
 	case $1 in 
 		commit)
 			runZentao $@;
