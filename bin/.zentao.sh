@@ -58,4 +58,12 @@ function runZentao(){
 	else
 		$exepath $@
 	fi
+	
+	if [ -f $commitFile ]; then
+		rm $commitFile;
+	fi
+	
+	if [ -f $logInfoFile ]; then
+		rm $logInfoFile;
+	fi
 }
