@@ -553,7 +553,9 @@ var ARROW_DOWN_TEXT = '↓';
             
             
             for(var key in mapIniData[name]){
-                arr.push(key + '=' + mapIniData[name][key]);
+				if(typeof mapIniData[name][key] !== undefined && typeof mapIniData[name][key] !== null){
+					arr.push(key + '=' + mapIniData[name][key]);
+				}
             }
         }
         
