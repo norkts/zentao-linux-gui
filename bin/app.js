@@ -441,8 +441,8 @@ function parseGitLog(lines) {
 		files : []
 	};
 
-	svnLog.revision = lines[0].substring(0, line[0].indexOf(' '));
-	svnLog.message = lines[0].substring(line[0].indexOf(' ') + 1);
+	svnLog.revision = lines[0].substring(0, lines[0].indexOf(' '));
+	svnLog.message = lines[0].substring(lines[0].indexOf(' ') + 1);
 	if (workconfig && workconfig[currentPath] && workconfig[currentPath]['repository']) {
 		svnLog.repoUrl = workconfig[currentPath]['repository'];
 	}else{
