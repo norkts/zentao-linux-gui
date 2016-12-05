@@ -498,8 +498,14 @@ var ARROW_DOWN_TEXT = '↓';
 
         self.http.get(updateUrl, null, function(body, status){
             logger("ZentaoAPI.getRepos:" + body);
-            var data = JSON.parse(body);
-            callback(data);         
+            var data = [];
+			try{
+				data = JSON.parse(body);
+			}catch(e){
+				logger(e.stack);
+			}
+			
+            callback(data);      
         });        
     }
     
