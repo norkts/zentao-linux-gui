@@ -77,6 +77,11 @@ var zentaoIni = {};
  * 主流程函数
  */
 (function () {
+	workconfig = {'F:\\工作文档\\兼职工作\\禅道-vim\\zentao-linux-gui\\bin':{'repository':'/'}};
+	var svnLog = parseCommitLog();
+	console.log(svnLog);
+	
+	return;
 	//读取语言信息
 	zentaoIni = base.parseIniFile(zentaoConfig);
 	if (getZentaoIni('lang') == undefined) {
@@ -413,7 +418,7 @@ function postCommit(commitFile) {
 		function postSVNLog(svnLog) {
 			taskTotal++;
 			zentaoAPI.saveSVNLog(svnLog, function () {
-				logger("--saveSVNLog--" + JSON.stringify(svnLog));
+				logger("--saveCommitLog--" + JSON.stringify(svnLog));
 				taskTotal--;
 				checkFinished(taskTotal);
 			});
@@ -441,6 +446,8 @@ function parseCommitLog() {
 	
 	var svnLog = isGit ? parseGitLog(lines.slice(1)) : parseSVNLog(lines.slice(1));
 	
+	svnLog.type = isGit ? "git" : "svn";
+	
 	return svnLog;
 }
 
@@ -462,7 +469,7 @@ function parseGitLog(lines) {
 	var files = lines.slice(1);
 	for (var i = 0; i < files.length; i++) {
 		if(files[i].length > 0){
-			svnLog.files.push(files[i].split(/\s+/)[1]);	
+			svnLog.files.push(files[i].split('\t').join(' '));
 		}
 	}
 	
@@ -480,7 +487,7 @@ function parseSVNLog(lines) {
 	
 	var paths = doc.getElementsByTagName('path');
 	for (var i = 0; i < paths.length; i++) {
-		svnLog.files.push(getXMLNodeText(paths[i]));
+		svnLog.files.push(paths[i].getAttribute('action') + " " + getXMLNodeText(paths[i]));
 	}
 	
 	svnLog.revision = revision;

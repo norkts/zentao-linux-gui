@@ -466,12 +466,11 @@ var ARROW_DOWN_TEXT = '↓';
     ZentaoAPI.prototype.saveSVNLog = function(log, callback){
         var self = this;
         
-        var name = "index.php?m=svn&f=ajaxSaveLog&t=json";
+        var name = "index.php?m=" + log.type + "&f=ajaxSaveLog&t=json";
         if (!self.isGetType){
-            name = "svn-ajaxSaveLog.json";
+            name = log.type + "-ajaxSaveLog.json";
         }
-
-
+		
         var updateUrl = self.url + name;
 
         var data = "repoUrl=" + encodeURIComponent(log.repoUrl) + "&repoRoot=" + encodeURIComponent(log.repoRoot)
