@@ -77,11 +77,6 @@ var zentaoIni = {};
  * 主流程函数
  */
 (function () {
-	workconfig = {'F:\\工作文档\\兼职工作\\禅道-vim\\zentao-linux-gui\\bin':{'repository':'/'}};
-	var svnLog = parseCommitLog();
-	console.log(svnLog);
-	
-	return;
 	//读取语言信息
 	zentaoIni = base.parseIniFile(zentaoConfig);
 	if (getZentaoIni('lang') == undefined) {
