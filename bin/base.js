@@ -484,13 +484,13 @@ var ARROW_DOWN_TEXT = '↓';
         self.http.post(updateUrl, data, null, callback);
     }
     
-    ZentaoAPI.prototype.getRepos = function(callback){
+    ZentaoAPI.prototype.getRepos = function(cvsType, callback){
         
         var self = this;
         
-        var name = "index.php?m=svn&f=ajaxGetRepos&t=json";
+        var name = "index.php?m=" + cvsType + "&f=ajaxGetRepos&t=json";
         if (!self.isGetType){
-            name = "svn-ajaxGetRepos.json";
+            name = cvsType + "-ajaxGetRepos.json";
         }
 
 

@@ -67,6 +67,7 @@ var zentaoAPI = undefined;
 var screen = undefined;
 
 var workconfig = undefined;
+var cvsType = process.argv[2].toLowerCase().indexOf('git') > -1 ? "git" : "svn";
 
 process.on('uncaughtException', function (error) {
 	logger(error.name + ":" + error.message + "\r\n" + error.stack);
@@ -263,7 +264,7 @@ function bindWorkRepository() {
 			});
 		});
 	}).then(function () {
-		zentaoAPI.getRepos(function (repos) {
+		zentaoAPI.getRepos(cvsType, function (repos) {
 			logger("bindWorkRepository getRepos res:" + JSON.stringify(repos));
 			
 			var repository = undefined;

@@ -43,7 +43,7 @@ function git(){
 function runZentao(){
 	
 	#执行禅道TUI操作命令
-	$zentaopath $@;
+	$zentaopath $exepath;
 	
 	#当zentao执行成功并生成了提交文件才执行提交命令
 	if [ -f $commitFile ]; then
@@ -53,7 +53,7 @@ function runZentao(){
 		if [ $? -eq 0 ]; then
 			echo "$exepath">$logInfoFile
 			$exepath $logCommond>>$logInfoFile
-			$zentaopath $@;
+			$zentaopath $exepath;
 		fi
 	else
 		$exepath $@
